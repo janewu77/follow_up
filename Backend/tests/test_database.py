@@ -91,10 +91,10 @@ def test_init_users(db: Session):
     init_users(db)
 
     users = db.query(User).all()
-    assert len(users) == 4
+    assert len(users) == 5
 
     usernames = {user.username for user in users}
-    assert usernames == {"alice", "bob", "jane", "xiao"}
+    assert usernames == {"alice", "bob", "jane", "xiao", "moni"}
 
     # 验证密码
     alice = db.query(User).filter(User.username == "alice").first()

@@ -24,6 +24,7 @@ def verify_token(token: str, db: Session) -> Optional[User]:
     - bob123 -> bob 用户
     - jane123 -> jane 用户
     - xiao123 -> xiao 用户
+    - moni123 -> moni 用户
     """
     # 从数据库查找密码匹配的用户
     user = db.query(User).filter(User.password == token).first()
@@ -54,7 +55,7 @@ async def get_current_user(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token. Valid tokens: alice123, bob123, jane123, xiao123",
+            detail="Invalid token. Valid tokens: alice123, bob123, jane123, xiao123, moni123",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

@@ -29,6 +29,7 @@ async def login(
     - bob / bob123
     - jane / jane123
     - xiao / xiao123
+    - moni / moni123
     """
     # 从数据库查询用户
     user = db.query(User).filter(User.username == request.username).first()

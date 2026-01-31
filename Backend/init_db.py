@@ -24,6 +24,7 @@ def init_users(db: Session):
         {"username": "bob", "password": "bob123"},
         {"username": "jane", "password": "jane123"},
         {"username": "xiao", "password": "xiao123"},
+        {"username": "moni", "password": "moni123"},
     ]
 
     for user_data in users_data:

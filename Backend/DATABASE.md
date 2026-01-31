@@ -90,6 +90,7 @@ async def get_items(db: Session = Depends(get_db)):
 | bob | bob123 | bob123 |
 | jane | jane123 | jane123 |
 | xiao | xiao123 | xiao123 |
+| moni | moni123 | moni123 |
 
 ## 迁移说明
 
