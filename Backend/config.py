@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     """应用配置"""
     
     # 数据库配置
+    # 测试环境使用内存数据库，生产环境使用文件数据库
     DATABASE_URL: str = "sqlite:///./followup.db"
     
     # OpenAI API 配置
@@ -26,7 +27,12 @@ class Settings(BaseSettings):
 # 全局配置实例
 settings = Settings()
 
-# 确保数据库文件目录存在
-if settings.DATABASE_URL.startswith("sqlite"):
+# 测试环境强制使用内存数据库（完全隔离生产数据库）
+# 这必须在 settings 创建后立即检查，确保测试不会影响生产数据库
+if os.getenv("TESTING") == "1":
+    settings.DATABASE_URL = "sqlite:///:memory:"
+
+# 确保数据库文件目录存在（仅对文件数据库）
+if settings.DATABASE_URL.startswith("sqlite") and not settings.DATABASE_URL.endswith(":memory:"):
     db_path = Path(settings.DATABASE_URL.replace("sqlite:///", ""))
     db_path.parent.mkdir(parents=True, exist_ok=True)
