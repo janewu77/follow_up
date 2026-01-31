@@ -250,13 +250,18 @@ async def download_ics(
 
     ics_content = cal.to_ical()
 
-    safe_title = "".join(c for c in event.title if c.isalnum() or c in " -_").strip()
+    # 使用 ASCII 安全的文件名，避免 HTTP 头编码问题
+    safe_title = "".join(c for c in event.title if c.isascii() and (c.isalnum() or c in " -_")).strip()
     filename = f"{safe_title or 'event'}.ics"
+    
+    # 对于包含非 ASCII 字符的标题，使用 RFC 5987 编码
+    from urllib.parse import quote
+    filename_encoded = quote(f"{event.title}.ics", safe="")
 
     return Response(
         content=ics_content,
         media_type="text/calendar",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": f"attachment; filename=\"{filename}\"; filename*=UTF-8''{filename_encoded}",
         },
     )
