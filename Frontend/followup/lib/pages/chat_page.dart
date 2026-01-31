@@ -523,11 +523,7 @@ class _ChatPageState extends State<ChatPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            backgroundColor: AppColors.primary,
-            radius: 18,
-            child: const Icon(Icons.smart_toy_outlined, color: Colors.white, size: 20),
-          ),
+          _buildAssistantAvatar(),
           const SizedBox(width: 12),
           Flexible(
             child: Container(
@@ -573,83 +569,170 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget _buildInputArea(AppLocalizations l10n) {
+  /// Build assistant avatar for typing indicator
+  Widget _buildAssistantAvatar() {
     return Container(
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
-        color: AppColors.cardBg,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF5ABFB3), // Light teal
+            Color(0xFF115E59), // Dark teal (primary)
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: SafeArea(
-        top: false,
+      child: Center(
+        child: Text(
+          'F',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputArea(AppLocalizations l10n) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Image preview area
-            if (_selectedImages.isNotEmpty) _buildImagePreview(),
-            // Input row
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Attachment button with options
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline),
-                    color: AppColors.primary,
-                    onPressed: _isTyping ? null : _showAttachmentOptions,
+            // Main input container
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                  const SizedBox(width: 8),
-                  // Text input
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundStart,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: AppColors.border),
-                      ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image preview area (inside the input box)
+                  if (_selectedImages.isNotEmpty) _buildImagePreview(),
+                  // Text input area
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, _selectedImages.isNotEmpty ? 8 : 16, 20, 4),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 24),
                       child: TextField(
                         controller: _messageController,
                         decoration: InputDecoration(
                           hintText: _selectedImages.isNotEmpty 
-                              ? 'Add a message or send images...' 
-                              : l10n.chatInputHint,
-                          hintStyle: TextStyle(color: AppColors.textMuted),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+                              ? 'Add a message...' 
+                              : 'Reply...',
+                          hintStyle: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 16,
                           ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: AppColors.textPrimary,
                         ),
                         onSubmitted: (_) => _sendMessage(),
-                        maxLines: null,
+                        maxLines: 5,
+                        minLines: 1,
                         enabled: !_isTyping,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  // Send button
-                  Container(
-                    decoration: BoxDecoration(
-                      color: _isTyping 
-                          ? AppColors.textMuted 
-                          : (_messageController.text.trim().isNotEmpty || _selectedImages.isNotEmpty)
-                              ? AppColors.primary
-                              : AppColors.textMuted.withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.send_rounded),
-                      color: Colors.white,
-                      onPressed: _isTyping ? null : _sendMessage,
+                  // Bottom row with + button and send button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Row(
+                      children: [
+                        // Attachment button (simple +)
+                        GestureDetector(
+                          onTap: _isTyping ? null : _showAttachmentOptions,
+                          child: Icon(
+                            Icons.add,
+                            color: _isTyping 
+                                ? AppColors.textMuted 
+                                : AppColors.textSecondary,
+                            size: 22,
+                          ),
+                        ),
+                        const Spacer(),
+                        // Send button (arrow up)
+                        Builder(
+                          builder: (context) {
+                            final bool canSend = !_isTyping && 
+                                (_messageController.text.trim().isNotEmpty || _selectedImages.isNotEmpty);
+                            return GestureDetector(
+                              onTap: canSend ? _sendMessage : null,
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  // Disabled state: green with gray overlay (shows it's a green button but disabled)
+                                  color: canSend 
+                                      ? AppColors.primary
+                                      : AppColors.primary.withValues(alpha: 0.4),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.arrow_upward_rounded,
+                                  color: canSend 
+                                      ? Colors.white 
+                                      : Colors.white.withValues(alpha: 0.7),
+                                  size: 20,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
+            ),
+            // Disclaimer text
+            const SizedBox(height: 10),
+            Builder(
+              builder: (context) {
+                final screenWidth = MediaQuery.of(context).size.width;
+                final isSmallScreen = screenWidth < 400;
+                return Text(
+                  isSmallScreen
+                      ? 'FollowUP is AI-powered and may make mistakes.\nPlease verify important information.'
+                      : 'FollowUP is AI-powered and may make mistakes. Please verify important information.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -657,84 +740,51 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  /// Build image preview area
+  /// Build image preview area (inside input container)
   Widget _buildImagePreview() {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _selectedImages.asMap().entries.map((entry) {
+          final index = entry.key;
+          final image = entry.value;
+          return Stack(
             children: [
-              Icon(Icons.photo_library, size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 6),
-              Text(
-                '${_selectedImages.length} image${_selectedImages.length > 1 ? 's' : ''} selected',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildImageWidget(image),
               ),
-              const Spacer(),
-              TextButton(
-                onPressed: _clearSelectedImages,
-                child: Text(
-                  'Clear all',
-                  style: TextStyle(
-                    color: AppColors.error,
-                    fontSize: 13,
+              Positioned(
+                top: 4,
+                right: 4,
+                child: GestureDetector(
+                  onTap: () => _removeSelectedImage(index),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 12,
+                    ),
                   ),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 80,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _selectedImages.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: _buildImageWidget(_selectedImages[index]),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: () => _removeSelectedImage(index),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.6),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }
 
   /// Build image widget (handles both web and mobile)
   Widget _buildImageWidget(XFile image) {
+    const double imageSize = 140;
     if (kIsWeb) {
       return FutureBuilder<Uint8List>(
         future: image.readAsBytes(),
@@ -742,14 +792,14 @@ class _ChatPageState extends State<ChatPage> {
           if (snapshot.hasData) {
             return Image.memory(
               snapshot.data!,
-              width: 80,
-              height: 80,
+              width: imageSize,
+              height: imageSize,
               fit: BoxFit.cover,
             );
           }
           return Container(
-            width: 80,
-            height: 80,
+            width: imageSize,
+            height: imageSize,
             color: AppColors.border,
             child: const Center(
               child: CircularProgressIndicator(strokeWidth: 2),
@@ -760,8 +810,8 @@ class _ChatPageState extends State<ChatPage> {
     } else {
       return Image.file(
         File(image.path),
-        width: 80,
-        height: 80,
+        width: imageSize,
+        height: imageSize,
         fit: BoxFit.cover,
       );
     }
@@ -787,6 +837,68 @@ class ChatMessage {
   });
 }
 
+/// Assistant avatar widget - branded design with gradient
+class _AssistantAvatar extends StatelessWidget {
+  final bool isError;
+
+  const _AssistantAvatar({this.isError = false});
+
+  @override
+  Widget build(BuildContext context) {
+    if (isError) {
+      return Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppColors.error,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Icon(
+            Icons.error_outline,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF5ABFB3), // Light teal (accent)
+            Color(0xFF115E59), // Dark teal (primary)
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.25),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: Text(
+          'F',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Chat bubble widget
 class _ChatBubble extends StatelessWidget {
   final ChatMessage message;
@@ -805,15 +917,7 @@ class _ChatBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isUser) ...[
-            CircleAvatar(
-              backgroundColor: message.isError ? AppColors.error : AppColors.primary,
-              radius: 18,
-              child: Icon(
-                message.isError ? Icons.error_outline : Icons.smart_toy_outlined,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
+            _AssistantAvatar(isError: message.isError),
             const SizedBox(width: 12),
           ],
           Flexible(

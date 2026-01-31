@@ -164,7 +164,7 @@ class _AnimatedWarmBackgroundState extends State<AnimatedWarmBackground>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 8),
+      duration: const Duration(seconds: 6), // Faster animation
       vsync: this,
     )..repeat(reverse: true);
   }
@@ -195,43 +195,53 @@ class _AnimatedWarmBackgroundState extends State<AnimatedWarmBackground>
               
               return Stack(
                 children: [
-                  // Top-right floating circle - teal tint
+                  // Top-right floating circle - teal tint (more visible)
                   Positioned(
-                    top: -80 + (20 * math.sin(animValue * math.pi)),
-                    right: -60 + (15 * math.cos(animValue * math.pi)),
+                    top: -60 + (35 * math.sin(animValue * math.pi)),
+                    right: -40 + (25 * math.cos(animValue * math.pi)),
+                    child: _AnimatedBubble(
+                      size: size.width * 0.55,
+                      color: const Color(0xFFB8D8D4).withValues(alpha: 0.55),
+                    ),
+                  ),
+                  
+                  // Left floating circle - warm beige (more visible)
+                  Positioned(
+                    top: size.height * 0.25 + (40 * math.sin(animValue * math.pi * 0.8)),
+                    left: -80 + (20 * math.cos(animValue * math.pi * 0.9)),
                     child: _AnimatedBubble(
                       size: size.width * 0.5,
-                      color: const Color(0xFFD4E8E4).withValues(alpha: 0.4),
+                      color: const Color(0xFFE0D0C0).withValues(alpha: 0.6),
                     ),
                   ),
                   
-                  // Left floating circle - warm beige
+                  // Bottom-right floating circle - soft peach (more visible)
                   Positioned(
-                    top: size.height * 0.3 + (25 * math.sin(animValue * math.pi * 0.8)),
-                    left: -100 + (10 * math.cos(animValue * math.pi * 0.9)),
+                    bottom: size.height * 0.1 + (30 * math.cos(animValue * math.pi * 0.7)),
+                    right: -60 + (20 * math.sin(animValue * math.pi * 1.1)),
                     child: _AnimatedBubble(
                       size: size.width * 0.45,
-                      color: const Color(0xFFE8DDD0).withValues(alpha: 0.5),
+                      color: const Color(0xFFDBC8B8).withValues(alpha: 0.55),
                     ),
                   ),
                   
-                  // Bottom-right floating circle - soft peach
+                  // Mid-left accent bubble - sage green
                   Positioned(
-                    bottom: size.height * 0.15 + (18 * math.cos(animValue * math.pi * 0.7)),
-                    right: -80 + (12 * math.sin(animValue * math.pi * 1.1)),
+                    top: size.height * 0.5 + (25 * math.sin(animValue * math.pi * 1.2)),
+                    left: size.width * 0.1 + (15 * math.cos(animValue * math.pi)),
                     child: _AnimatedBubble(
-                      size: size.width * 0.4,
-                      color: const Color(0xFFE5D9C9).withValues(alpha: 0.45),
+                      size: 120,
+                      color: const Color(0xFF5A7A6B).withValues(alpha: 0.12),
                     ),
                   ),
                   
-                  // Small accent bubble - subtle teal
+                  // Top-left small bubble - light teal
                   Positioned(
-                    top: size.height * 0.55 + (15 * math.sin(animValue * math.pi * 1.2)),
-                    right: size.width * 0.2 + (8 * math.cos(animValue * math.pi)),
+                    top: size.height * 0.12 + (20 * math.cos(animValue * math.pi * 0.9)),
+                    left: size.width * 0.25 + (12 * math.sin(animValue * math.pi * 1.1)),
                     child: _AnimatedBubble(
-                      size: 80,
-                      color: AppColors.primary.withValues(alpha: 0.08),
+                      size: 100,
+                      color: const Color(0xFFAAD4CC).withValues(alpha: 0.3),
                     ),
                   ),
                   
@@ -251,40 +261,58 @@ class _AnimatedWarmBackgroundState extends State<AnimatedWarmBackground>
   
   List<Widget> _buildFloatingDots(Size size, double animValue) {
     return [
-      // Dot 1
+      // Dot 1 - larger, more visible
       Positioned(
-        top: size.height * 0.15 + (12 * math.sin(animValue * math.pi * 1.5)),
-        left: size.width * 0.15,
+        top: size.height * 0.18 + (18 * math.sin(animValue * math.pi * 1.5)),
+        left: size.width * 0.12,
         child: _FloatingDot(
-          size: 8,
-          color: AppColors.primary.withValues(alpha: 0.15),
+          size: 12,
+          color: AppColors.primary.withValues(alpha: 0.25),
         ),
       ),
       // Dot 2
       Positioned(
-        top: size.height * 0.4 + (10 * math.cos(animValue * math.pi * 1.3)),
-        right: size.width * 0.1,
+        top: size.height * 0.38 + (15 * math.cos(animValue * math.pi * 1.3)),
+        right: size.width * 0.08,
         child: _FloatingDot(
-          size: 6,
-          color: const Color(0xFF5ABFB3).withValues(alpha: 0.2),
+          size: 10,
+          color: const Color(0xFF5ABFB3).withValues(alpha: 0.3),
         ),
       ),
       // Dot 3
       Positioned(
-        bottom: size.height * 0.35 + (8 * math.sin(animValue * math.pi * 0.9)),
-        left: size.width * 0.08,
+        bottom: size.height * 0.32 + (12 * math.sin(animValue * math.pi * 0.9)),
+        left: size.width * 0.06,
         child: _FloatingDot(
-          size: 10,
-          color: const Color(0xFFE8C8B8).withValues(alpha: 0.4),
+          size: 14,
+          color: const Color(0xFFE8C8B8).withValues(alpha: 0.5),
         ),
       ),
       // Dot 4
       Positioned(
-        top: size.height * 0.7 + (14 * math.cos(animValue * math.pi * 1.1)),
-        right: size.width * 0.25,
+        top: size.height * 0.65 + (20 * math.cos(animValue * math.pi * 1.1)),
+        right: size.width * 0.2,
         child: _FloatingDot(
-          size: 7,
-          color: AppColors.accent.withValues(alpha: 0.12),
+          size: 10,
+          color: AppColors.accent.withValues(alpha: 0.2),
+        ),
+      ),
+      // Dot 5 - new dot
+      Positioned(
+        top: size.height * 0.45 + (16 * math.sin(animValue * math.pi * 0.7)),
+        right: size.width * 0.35,
+        child: _FloatingDot(
+          size: 8,
+          color: const Color(0xFF5A7A6B).withValues(alpha: 0.2),
+        ),
+      ),
+      // Dot 6 - new dot
+      Positioned(
+        bottom: size.height * 0.2 + (14 * math.cos(animValue * math.pi * 1.4)),
+        right: size.width * 0.45,
+        child: _FloatingDot(
+          size: 11,
+          color: const Color(0xFFAAD4CC).withValues(alpha: 0.35),
         ),
       ),
     ];
