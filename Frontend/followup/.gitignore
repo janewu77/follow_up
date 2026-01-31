@@ -30,7 +30,13 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
+# 保留 web 构建产物用于部署
+/build/ios/
+/build/android/
+/build/macos/
+/build/windows/
+/build/linux/
+# /build/web/ 保留，不忽略
 /coverage/
 
 # Symbolication related
