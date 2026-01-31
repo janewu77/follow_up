@@ -2,8 +2,7 @@
 FollowUP Backend - FastAPI Application
 
 路由结构：
-- /api/*   - 真实 API（使用数据库 + LLM）
-- /mock/*  - Mock API（内存存储 + 模拟数据，用于前端开发）
+- /api/*   - API（使用数据库 + LLM）
 """
 import os
 from pathlib import Path
@@ -13,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 # 导入路由
-from routers import api_router, mock_router
+from routers import api_router
 
 # 初始化数据库
 from database import init_db
@@ -53,11 +52,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 注册真实 API 路由 (/api/*)
+# 注册 API 路由 (/api/*)
 app.include_router(api_router)
-
-# 注册 Mock API 路由 (/mock/*)
-app.include_router(mock_router)
 
 
 @app.get("/api/health")
@@ -104,12 +100,6 @@ else:
                 "parse": "POST /api/parse",
                 "events": "GET/POST /api/events",
                 "health": "GET /api/health",
-            },
-            "mock_endpoints": {
-                "auth": "POST /mock/auth/login",
-                "user": "GET /mock/user/me",
-                "parse": "POST /mock/parse",
-                "events": "GET/POST /mock/events",
             },
         }
 

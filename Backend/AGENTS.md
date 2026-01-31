@@ -23,7 +23,6 @@
 
 ```
 /api/*    - Production API (database + LLM)
-/mock/*   - Mock API (in-memory, for frontend development)
 ```
 
 ### Directory Structure
@@ -31,20 +30,14 @@
 ```
 Backend/
 ├── main.py              # FastAPI entry point
-├── auth.py              # JWT generation/validation
+├── auth.py              # Token authentication
 ├── schemas.py           # Pydantic request/response models
-├── mock_data.py         # In-memory storage for mock API
 ├── routers/
-│   ├── __init__.py      # Exports api_router and mock_router
-│   ├── auth.py          # /api/auth/* (TODO: implement)
-│   ├── users.py         # /api/user/* (TODO: implement)
-│   ├── parse.py         # /api/parse (TODO: implement)
-│   ├── events.py        # /api/events/* (TODO: implement)
-│   └── mock/            # Mock implementations
-│       ├── auth.py
-│       ├── users.py
-│       ├── parse.py
-│       └── events.py
+│   ├── __init__.py      # Exports api_router
+│   ├── auth.py          # /api/auth/*
+│   ├── users.py         # /api/user/*
+│   ├── parse.py         # /api/parse
+│   └── events.py        # /api/events/*
 ├── services/            # Services layer
 │   ├── __init__.py
 │   ├── llm_service.py   # LangChain integration (✅ implemented)
@@ -141,7 +134,7 @@ from main import app
 client = TestClient(app)
 
 def test_login_success():
-    response = client.post("/mock/auth/login", json={
+    response = client.post("/api/auth/login", json={
         "username": "alice",
         "password": "alice123"
     })
@@ -149,7 +142,7 @@ def test_login_success():
     assert "access_token" in response.json()
 
 def test_login_invalid_credentials():
-    response = client.post("/mock/auth/login", json={
+    response = client.post("/api/auth/login", json={
         "username": "alice",
         "password": "wrong"
     })

@@ -520,33 +520,6 @@ curl -X GET "http://localhost:8000/api/health"
 
 ---
 
-### 7.12 Mock 接口（无需认证）
-
-Mock 接口用于前端开发测试，无需 Token：
-
-```bash
-# Mock 登录
-curl -X POST "http://localhost:8000/mock/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"alice123"}'
-
-# Mock 用户信息
-curl -X GET "http://localhost:8000/mock/user/me"
-
-# Mock 解析
-curl -X POST "http://localhost:8000/mock/parse" \
-  -H "Content-Type: application/json" \
-  -d '{"input_type":"text","text_content":"明天开会"}'
-
-# Mock 活动列表
-curl -X GET "http://localhost:8000/mock/events"
-
-# Mock 创建活动
-curl -X POST "http://localhost:8000/mock/events" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Test Event","start_time":"2026-02-01T10:00:00"}'
-```
-
 ---
 
 ### PowerShell 用户

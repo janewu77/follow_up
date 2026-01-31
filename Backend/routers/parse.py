@@ -128,7 +128,7 @@ def parse_image(image_base64: str, additional_note: str = None) -> list[ParsedEv
         if events:
             return events
     
-    # Fallback to mock data
+    # Fallback to simple parsing
     return parse_image_fallback(image_base64, additional_note)
 
 
