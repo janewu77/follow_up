@@ -20,8 +20,7 @@ dependencies = [
     "psycopg2-binary>=2.9.9",
 ]
 
-[project.scripts]
-dev = "uvicorn main:app --reload"
+# [project.scripts] - 使用 uv run uvicorn main:app --reload 代替
 
 [tool.uv]
 dev-dependencies = [
