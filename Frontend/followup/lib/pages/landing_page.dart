@@ -441,455 +441,107 @@ class _NavLinkState extends State<_NavLink> {
   }
 }
 
-// Hero 区域 - 现代渐变背景
+// Hero Section with background image
 class _HeroSection extends StatelessWidget {
   const _HeroSection();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
     final isWide = screenWidth > 900;
+    final isMedium = screenWidth > 600;
+
+    // Calculate hero height based on screen size
+    final heroHeight = isWide 
+        ? screenHeight * 0.75 
+        : isMedium 
+            ? screenHeight * 0.6 
+            : screenHeight * 0.5;
 
     return Container(
       width: double.infinity,
-      // 背景由全局 _WarmBackground 提供
+      height: heroHeight,
       child: Stack(
         children: [
-          // 主要内容
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isWide ? 80 : 24,
-              vertical: isWide ? 80 : 48,
+          // Background image
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/main_picture.png',
+              fit: isWide ? BoxFit.cover : BoxFit.cover,
+              alignment: isWide 
+                  ? Alignment.center 
+                  : const Alignment(0.3, 0), // Show more of the right side (phone) on small screens
             ),
-            child: isWide
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: _HeroContent(isWide: isWide),
-                      ),
-                      const SizedBox(width: 64),
-                      Expanded(
-                        child: _HeroImage(),
-                      ),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      _HeroContent(isWide: isWide),
-                      const SizedBox(height: 48),
-                      _HeroImage(),
+          ),
+          // Subtle gradient overlay for better text readability on small screens
+          if (!isWide)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.7),
+                      Colors.white.withValues(alpha: 0.0),
                     ],
                   ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroContent extends StatelessWidget {
-  final bool isWide;
-
-  const _HeroContent({required this.isWide});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context)!;
-
-    return Column(
-      crossAxisAlignment: isWide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-      children: [
-        // AI Tag
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                _BrandColors.primary.withValues(alpha: 0.15),
-                _BrandColors.accent.withValues(alpha: 0.15),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: _BrandColors.primary.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: _BrandColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.auto_awesome, color: Colors.white, size: 12),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                l10n.footerTagline,
-                style: const TextStyle(
-                  color: _BrandColors.primary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 28),
-        // Main Title
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [_BrandColors.textPrimary, _BrandColors.primary, _BrandColors.primaryLight],
-          ).createShader(bounds),
-          child: Text(
-            l10n.landingHeroTitle,
-            textAlign: isWide ? TextAlign.left : TextAlign.center,
-            style: (isWide ? theme.textTheme.displaySmall : theme.textTheme.headlineLarge)?.copyWith(
-              fontWeight: FontWeight.w900,
-              height: 1.15,
-              color: Colors.white,
-              letterSpacing: -0.5,
             ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        // Subtitle
-        Text(
-          l10n.landingHeroSubtitle,
-          textAlign: isWide ? TextAlign.left : TextAlign.center,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            height: 1.7,
-            fontSize: 17,
-          ),
-        ),
-        const SizedBox(height: 36),
-        // CTA Buttons
-        Wrap(
-          spacing: 16,
-          runSpacing: 12,
-          alignment: isWide ? WrapAlignment.start : WrapAlignment.center,
-          children: [
-            // Primary Button
-            Container(
-              decoration: BoxDecoration(
-                color: _BrandColors.primary,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => Navigator.pushNamed(context, '/login'),
+          // CTA button at bottom for mobile
+          if (!isWide)
+            Positioned(
+              bottom: 24,
+              left: 24,
+              right: 24,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: _BrandColors.primary,
                   borderRadius: BorderRadius.circular(24),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                    child: Text(
-                      l10n.tryNow,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _BrandColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
+                  ],
                 ),
-              ),
-            ),
-            // Secondary Button
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: _BrandColors.primary,
-                  width: 1.5,
-                ),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {},
-                  borderRadius: BorderRadius.circular(24),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                    child: Text(
-                      l10n.learnMore,
-                      style: const TextStyle(
-                        color: _BrandColors.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 32),
-        // Trust Badges
-        Wrap(
-          spacing: 24,
-          runSpacing: 12,
-          alignment: isWide ? WrapAlignment.start : WrapAlignment.center,
-          children: [
-            _TrustBadge(icon: Icons.lock_outline, text: l10n.pricingFreeFeature1),
-            _TrustBadge(icon: Icons.flash_on, text: l10n.pricingFreeFeature2),
-            _TrustBadge(icon: Icons.credit_card_off_outlined, text: l10n.pricingFree),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _TrustBadge extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _TrustBadge({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18, color: _BrandColors.success),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: TextStyle(
-            color: Colors.grey[700],
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HeroImage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 480),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: _BrandColors.primary.withValues(alpha: 0.15),
-            blurRadius: 60,
-            offset: const Offset(0, 30),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-            ),
-          ),
-          child: Builder(
-            builder: (context) {
-              final l10n = AppLocalizations.of(context)!;
-              return Column(
-                children: [
-                  // Input type selector
-                  Row(
-                    children: [
-                      _InputTypeChip(icon: Icons.photo_outlined, label: l10n.demoImageTab, isSelected: true),
-                      const SizedBox(width: 10),
-                      _InputTypeChip(icon: Icons.text_fields, label: l10n.demoTextTab, isSelected: false),
-                      const SizedBox(width: 10),
-                      _InputTypeChip(icon: Icons.mic_none, label: l10n.demoVoiceTab, isSelected: false),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Event preview card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          _BrandColors.primary.withValues(alpha: 0.08),
-                          _BrandColors.accent.withValues(alpha: 0.05),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => Navigator.pushNamed(context, '/login'),
+                    borderRadius: BorderRadius.circular(24),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.play_arrow_rounded, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalizations.of(context)!.tryNow,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _BrandColors.primary.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: _BrandColors.primary,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(Icons.event, color: Colors.white, size: 18),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    l10n.demoTeamDinner,
-                                    style: theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    l10n.demoNextFriday,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: _BrandColors.primary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _BrandColors.success.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                l10n.demoRecognized,
-                                style: const TextStyle(
-                                  color: _BrandColors.success,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        const _EventDetailRow(icon: Icons.access_time, text: '19:00 - 21:00'),
-                        const SizedBox(height: 10),
-                        _EventDetailRow(icon: Icons.location_on_outlined, text: l10n.demoRestaurant),
-                        const SizedBox(height: 10),
-                        _EventDetailRow(icon: Icons.note_outlined, text: l10n.demoBirthdayCard),
-                      ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  // Add button
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: _BrandColors.primary,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {},
-                        borderRadius: BorderRadius.circular(24),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.calendar_today_rounded, color: Colors.white, size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                l10n.demoAddToCalendar,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InputTypeChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-
-  const _InputTypeChip({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: isSelected
-            ? const LinearGradient(
-                colors: [_BrandColors.primary, _BrandColors.primaryDark],
-              )
-            : null,
-        color: isSelected ? null : Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: isSelected ? Colors.white : Colors.grey[600],
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.grey[600],
-              fontWeight: FontWeight.w500,
-              fontSize: 13,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 }
+
+// Removed unused hero widgets - now using main_picture.png as hero background
 
 class _EventDetailRow extends StatelessWidget {
   final IconData icon;
