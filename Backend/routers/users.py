@@ -24,6 +24,7 @@ async def get_current_user_info(
 
     示例：Authorization: Bearer alice123
     """
+    logger.debug(f"Getting user info for: {current_user.username} (id={current_user.id})")
     return UserResponse(
         id=current_user.id,
         username=current_user.username,

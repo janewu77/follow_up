@@ -5,11 +5,18 @@ FollowUP Backend - FastAPI Application
 - /api/*   - API（使用数据库 + LLM）
 """
 import os
+import time
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+import logging
+
+# 配置日志
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # 导入路由
 from routers import api_router
@@ -59,6 +66,7 @@ app.include_router(api_router)
 @app.get("/api/health")
 async def health_check():
     """健康检查端点"""
+    logger.debug("Health check requested")
     return {"status": "healthy"}
 
 

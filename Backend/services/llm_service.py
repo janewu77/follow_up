@@ -3,6 +3,7 @@ LLM Service - 使用 LangChain + OpenAI 进行日程解析
 """
 import os
 import base64
+import time
 from typing import List, Optional
 from datetime import datetime
 from langchain_openai import ChatOpenAI
@@ -12,6 +13,9 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 from schemas import ParsedEvent
 from config import settings
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class EventExtraction(BaseModel):
@@ -33,8 +37,10 @@ def get_llm() -> ChatOpenAI:
     """获取 OpenAI LLM 实例"""
     api_key = settings.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY")
     if not api_key:
+        logger.error("OPENAI_API_KEY is not configured")
         raise ValueError("OPENAI_API_KEY is not configured. Set it in .env file or environment variable.")
     
+    logger.debug(f"Initializing LLM: model={settings.OPENAI_MODEL}, temperature=0.3")
     return ChatOpenAI(
         model=settings.OPENAI_MODEL,
         temperature=0.3,  # 降低温度以获得更一致的结果
@@ -83,24 +89,33 @@ def parse_text_with_llm(
     Returns:
         解析出的事件列表
     """
+    start_time = time.time()
+    logger.debug(f"Starting LLM text parsing (text_length={len(text)})")
+    
     try:
         llm = get_llm()
         parser = JsonOutputParser(pydantic_object=EventExtractionList)
         
         # 构建 prompt
+        current_time = datetime.now().isoformat()
         prompt = TEXT_PARSE_PROMPT.format_messages(
-            current_time=datetime.now().isoformat(),
+            current_time=current_time,
             text=text,
             additional_note=additional_note or "",
         )
+        
+        logger.debug(f"Calling LLM API (model={settings.OPENAI_MODEL})")
         
         # 调用 LLM
         chain = prompt | llm | parser
         result = chain.invoke({})
         
+        elapsed = time.time() - start_time
+        logger.info(f"LLM API call completed in {elapsed:.2f}s")
+        
         # 转换为 ParsedEvent
         events = []
-        for event_data in result.get("events", []):
+        for idx, event_data in enumerate(result.get("events", [])):
             try:
                 events.append(ParsedEvent(
                     id=None,
@@ -112,16 +127,18 @@ def parse_text_with_llm(
                     source_type="text",
                     is_followed=False,
                 ))
+                logger.debug(f"Parsed event {idx+1}: {event_data.get('title')} @ {event_data.get('start_time')}")
             except (KeyError, ValueError) as e:
                 # 跳过格式错误的事件
+                logger.warning(f"Skipping invalid event data at index {idx}: {e}")
                 continue
         
+        logger.info(f"LLM text parsing completed: {len(events)} event(s) extracted")
         return events
     
     except Exception as e:
-        # 如果 LLM 调用失败，返回空列表或使用 fallback
-        # 在生产环境中应该记录错误日志
-        print(f"LLM parsing failed: {e}")
+        elapsed = time.time() - start_time
+        logger.error(f"LLM text parsing failed after {elapsed:.2f}s: {e}", exc_info=True)
         return []
 
 

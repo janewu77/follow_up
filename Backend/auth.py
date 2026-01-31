@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import User
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # Bearer Token 安全模式
 security = HTTPBearer(auto_error=False)
@@ -43,6 +46,7 @@ async def get_current_user(
     - Authorization: Bearer bob123
     """
     if credentials is None:
+        logger.warning("Authentication failed: no credentials provided")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated. Use 'Authorization: Bearer alice123'",
@@ -53,12 +57,14 @@ async def get_current_user(
     user = verify_token(token, db)
 
     if user is None:
+        logger.warning(f"Authentication failed: invalid token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token. Valid tokens: alice123, bob123, jane123, xiao123, moni123",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    logger.debug(f"User authenticated: {user.username} (id={user.id})")
     return user
 
 

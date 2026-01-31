@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 
 from database import init_db, SessionLocal
 from models import User, Event
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def init_users(db: Session):
@@ -15,9 +18,10 @@ def init_users(db: Session):
     # 检查用户是否已存在
     existing_users = db.query(User).count()
     if existing_users > 0:
-        print("用户已存在，跳过初始化")
+        logger.info(f"Users already exist ({existing_users} users), skipping initialization")
         return
 
+    logger.info("Initializing preset users...")
     # 预置用户
     users_data = [
         {"username": "alice", "password": "alice123"},
@@ -36,7 +40,7 @@ def init_users(db: Session):
         db.add(user)
 
     db.commit()
-    print(f"[OK] Created {len(users_data)} preset users")
+    logger.info(f"Created {len(users_data)} preset users: {', '.join([u['username'] for u in users_data])}")
 
 
 def init_sample_events(db: Session):
@@ -87,7 +91,7 @@ def init_sample_events(db: Session):
         db.add(event)
 
     db.commit()
-    print(f"[OK] Created {len(events_data)} sample events")
+    logger.info(f"Created {len(events_data)} sample events for user 'alice'")
 
 
 def main():

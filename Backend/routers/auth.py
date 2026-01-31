@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 from schemas import LoginRequest, LoginResponse, UserResponse
 from database import get_db
 from models import User
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -31,10 +34,20 @@ async def login(
     - xiao / xiao123
     - moni / moni123
     """
+    logger.info(f"Login attempt for username: {request.username}")
+    
     # 从数据库查询用户
     user = db.query(User).filter(User.username == request.username).first()
 
-    if user is None or user.password != request.password:
+    if user is None:
+        logger.warning(f"Login failed: user '{request.username}' not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+        )
+    
+    if user.password != request.password:
+        logger.warning(f"Login failed: incorrect password for user '{request.username}'")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -42,6 +55,8 @@ async def login(
 
     # Token 就是密码
     access_token = request.password
+    
+    logger.info(f"Login successful for user: {user.username} (id={user.id})")
 
     return LoginResponse(
         access_token=access_token,

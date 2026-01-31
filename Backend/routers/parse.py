@@ -5,18 +5,27 @@
 """
 import uuid
 import os
+import time
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from schemas import ParseRequest, ParseResponse, ParsedEvent
 from auth import get_current_user
 from models import User
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # 尝试导入 LLM 服务，如果失败则使用 fallback
 try:
     from services.llm_service import parse_text_with_llm, parse_image_with_llm
     LLM_AVAILABLE = os.getenv("OPENAI_API_KEY") is not None
-except (ImportError, ValueError):
+    if LLM_AVAILABLE:
+        logger.info("LLM service available (OpenAI API key configured)")
+    else:
+        logger.warning("LLM service unavailable (OpenAI API key not configured)")
+except (ImportError, ValueError) as e:
     LLM_AVAILABLE = False
+    logger.warning(f"LLM service unavailable: {e}")
 
 router = APIRouter(tags=["日程解析"])
 
@@ -109,13 +118,26 @@ def parse_text(text: str, additional_note: str = None) -> list[ParsedEvent]:
     解析文字内容
     优先使用 LLM，失败时使用 fallback
     """
+    logger.debug(f"Parsing text (length={len(text)}, LLM_AVAILABLE={LLM_AVAILABLE})")
+    start_time = time.time()
+    
     if LLM_AVAILABLE:
-        events = parse_text_with_llm(text, additional_note)
-        if events:
-            return events
+        try:
+            events = parse_text_with_llm(text, additional_note)
+            elapsed = time.time() - start_time
+            if events:
+                logger.info(f"LLM parsed {len(events)} event(s) from text in {elapsed:.2f}s")
+                return events
+            else:
+                logger.warning(f"LLM returned no events, using fallback")
+        except Exception as e:
+            logger.error(f"LLM parsing failed: {e}", exc_info=True)
     
     # Fallback to simple parsing
-    return parse_text_fallback(text, additional_note)
+    logger.debug("Using fallback text parser")
+    events = parse_text_fallback(text, additional_note)
+    logger.info(f"Fallback parser returned {len(events)} event(s)")
+    return events
 
 
 def parse_image(image_base64: str, additional_note: str = None) -> list[ParsedEvent]:
@@ -146,8 +168,15 @@ async def parse_event(
     
     需要认证：Authorization: Bearer <token>
     """
+    parse_id = str(uuid.uuid4())
+    logger.info(
+        f"Parse request from user {current_user.username}: "
+        f"type={request.input_type}, parse_id={parse_id}"
+    )
+    
     if request.input_type == "text":
         if not request.text_content:
+            logger.warning(f"Parse failed: text_content is required")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="text_content is required for text input type",
@@ -156,6 +185,7 @@ async def parse_event(
     
     elif request.input_type == "image":
         if not request.image_base64:
+            logger.warning(f"Parse failed: image_base64 is required")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="image_base64 is required for image input type",
@@ -163,12 +193,19 @@ async def parse_event(
         events = parse_image(request.image_base64, request.additional_note)
     
     else:
+        logger.warning(f"Parse failed: invalid input_type={request.input_type}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="input_type must be 'text' or 'image'",
         )
     
+    logger.info(
+        f"Parse completed: parse_id={parse_id}, "
+        f"user={current_user.username}, "
+        f"events_count={len(events)}"
+    )
+    
     return ParseResponse(
         events=events,
-        parse_id=str(uuid.uuid4()),
+        parse_id=parse_id,
     )

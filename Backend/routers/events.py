@@ -50,12 +50,15 @@ async def list_events(
 
     需要认证：Authorization: Bearer <token>
     """
+    logger.info(f"Listing events for user {current_user.username} (followed_only={followed_only})")
+    
     query = db.query(Event).filter(Event.user_id == current_user.id)
 
     if followed_only:
         query = query.filter(Event.is_followed == True)  # noqa: E712
 
     events = query.order_by(Event.start_time).all()
+    logger.info(f"Found {len(events)} event(s) for user {current_user.username}")
 
     return EventListResponse(
         events=[event_to_response(e) for e in events]
@@ -102,17 +105,21 @@ async def get_event(
 
     需要认证：Authorization: Bearer <token>
     """
+    logger.debug(f"Getting event {event_id} for user {current_user.username}")
+    
     event = db.query(Event).filter(
         Event.id == event_id,
         Event.user_id == current_user.id,
     ).first()
 
     if event is None:
+        logger.warning(f"Event {event_id} not found for user {current_user.username}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found",
         )
 
+    logger.debug(f"Event {event_id} retrieved: {event.title}")
     return event_to_response(event)
 
 
@@ -170,19 +177,24 @@ async def delete_event_endpoint(
 
     需要认证：Authorization: Bearer <token>
     """
+    logger.info(f"Deleting event {event_id} for user {current_user.username}")
+    
     event = db.query(Event).filter(
         Event.id == event_id,
         Event.user_id == current_user.id,
     ).first()
 
     if event is None:
+        logger.warning(f"Event {event_id} not found for user {current_user.username}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found",
         )
 
+    logger.info(f"Deleting event {event_id}: {event.title}")
     db.delete(event)
     db.commit()
+    logger.info(f"Event {event_id} deleted successfully")
 
     return None
 
