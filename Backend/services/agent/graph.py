@@ -23,6 +23,7 @@ from .prompts.intent import (
     EVENT_EXTRACTION_PROMPT,
     EVENT_MATCH_PROMPT,
     EVENT_UPDATE_PROMPT,
+    EVENT_QUERY_PROMPT,
 )
 
 logger = get_logger(__name__)
@@ -568,13 +569,76 @@ def handle_delete_event(state: AgentState) -> AgentState:
         }
 
 
+def handle_query_event(state: AgentState) -> AgentState:
+    """处理查询日程"""
+    logger.debug("Handling query event...")
+    
+    db = state["db"]
+    user_id = state["user_id"]
+    
+    # 获取用户的日程列表
+    events = db.query(Event).filter(Event.user_id == user_id).order_by(Event.start_time).all()
+    
+    if not events:
+        return {
+            **state,
+            "response": "您目前没有任何日程。需要我帮您创建一个吗？",
+            "action_result": {"action": "query_event", "events_count": 0, "events": []},
+        }
+    
+    # 使用 LLM 根据用户请求智能回复
+    llm = get_llm()
+    current_time = datetime.now().isoformat()
+    
+    events_list = json.dumps([
+        {
+            "id": e.id,
+            "title": e.title,
+            "start_time": e.start_time.isoformat(),
+            "end_time": e.end_time.isoformat() if e.end_time else None,
+            "location": e.location,
+            "description": e.description,
+        }
+        for e in events
+    ], ensure_ascii=False, indent=2)
+    
+    prompt = EVENT_QUERY_PROMPT.format_messages(
+        current_time=current_time,
+        message=state["message"],
+        events_list=events_list,
+    )
+    
+    response = llm.invoke(prompt)
+    
+    logger.info(f"Query event completed: found {len(events)} events")
+    
+    return {
+        **state,
+        "response": response.content,
+        "action_result": {
+            "action": "query_event",
+            "events_count": len(events),
+            "events": [
+                {
+                    "id": e.id,
+                    "title": e.title,
+                    "start_time": e.start_time.isoformat(),
+                    "end_time": e.end_time.isoformat() if e.end_time else None,
+                    "location": e.location,
+                }
+                for e in events
+            ],
+        },
+    }
+
+
 def handle_reject(state: AgentState) -> AgentState:
     """处理无法处理的请求"""
     logger.debug("Handling reject...")
     
     return {
         **state,
-        "response": "抱歉，这个请求超出了我的能力范围。我是一个日程助手，可以帮您创建、修改和删除日程，也可以和您闲聊。如果有日程相关的需求，请告诉我！",
+        "response": "抱歉，这个请求超出了我的能力范围。我是一个日程助手，可以帮您创建、查询、修改和删除日程，也可以和您闲聊。如果有日程相关的需求，请告诉我！",
         "action_result": None,
     }
 
