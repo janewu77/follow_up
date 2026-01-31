@@ -81,21 +81,12 @@ class _LoginPageState extends State<LoginPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           // Logo
-                          Icon(
-                            Icons.event_available,
-                            size: 80,
-                            color: theme.colorScheme.primary,
+                          Image.asset(
+                            'assets/images/logo.png',
+                            height: 80,
+                            fit: BoxFit.contain,
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'FollowUP',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 24),
                           Text(
                             '登录以继续',
                             textAlign: TextAlign.center,

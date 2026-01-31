@@ -58,12 +58,10 @@ class _HeroSection extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'FollowUP',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Image.asset(
+                    'assets/images/logo.png',
+                    height: 40,
+                    fit: BoxFit.contain,
                   ),
                   TextButton(
                     onPressed: () => Navigator.pushNamed(context, '/login'),
@@ -75,6 +73,14 @@ class _HeroSection extends StatelessWidget {
                 ],
               ),
               SizedBox(height: isWide ? 80 : 48),
+
+              // Logo Image
+              Image.asset(
+                'assets/images/logo.png',
+                height: isWide ? 120 : 80,
+                fit: BoxFit.contain,
+              ),
+              SizedBox(height: isWide ? 32 : 24),
               
               // Hero Content
               Text(
