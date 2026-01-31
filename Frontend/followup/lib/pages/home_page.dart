@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../providers/events_provider.dart';
 import '../widgets/event_card.dart';
 import '../widgets/error_dialog.dart';
+import '../theme/app_theme.dart';
 
 // 主页面
 class HomePage extends StatefulWidget {
@@ -58,9 +59,11 @@ class _HomePageState extends State<HomePage> {
     if (isWide) {
       // 宽屏使用侧边导航
       return Scaffold(
+        backgroundColor: AppColors.backgroundStart,
         body: Row(
           children: [
             NavigationRail(
+              backgroundColor: AppColors.cardBg,
               selectedIndex: _selectedIndex,
               onDestinationSelected: (index) => _onDestinationSelected(index),
               labelType: NavigationRailLabelType.all,
@@ -99,7 +102,9 @@ class _HomePageState extends State<HomePage> {
               destinations: destinations,
             ),
             const VerticalDivider(thickness: 1, width: 1),
-            Expanded(child: pages[_selectedIndex]),
+            Expanded(
+              child: SimpleWarmBackground(child: pages[_selectedIndex]),
+            ),
           ],
         ),
       );
@@ -107,7 +112,9 @@ class _HomePageState extends State<HomePage> {
 
     // 窄屏使用底部导航
     return Scaffold(
+      backgroundColor: AppColors.backgroundStart,
       appBar: AppBar(
+        backgroundColor: AppColors.cardBg,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -127,8 +134,9 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: pages[_selectedIndex],
+      body: SimpleWarmBackground(child: pages[_selectedIndex]),
       bottomNavigationBar: NavigationBar(
+        backgroundColor: AppColors.cardBg,
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => _onDestinationSelected(index),
         destinations: const [
@@ -370,9 +378,10 @@ class _QuickActionCard extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+      color: AppColors.cardBg,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.border),
       ),
       child: InkWell(
         onTap: onTap,
@@ -382,23 +391,31 @@ class _QuickActionCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                icon,
-                size: 32,
-                color: theme.colorScheme.primary,
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 24,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
                 title,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],

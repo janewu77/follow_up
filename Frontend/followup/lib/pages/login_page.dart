@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/validators.dart';
 import '../widgets/loading_overlay.dart';
+import '../theme/app_theme.dart';
 
 // 登录页面
 class LoginPage extends StatefulWidget {
@@ -66,11 +67,13 @@ class _LoginPageState extends State<LoginPage> {
           isLoading: authProvider.isLoading,
           message: '登录中...',
           child: Scaffold(
-            body: SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Container(
+            backgroundColor: AppColors.backgroundStart,
+            body: SimpleWarmBackground(
+              child: SafeArea(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Container(
                     constraints: BoxConstraints(
                       maxWidth: isWide ? 400 : double.infinity,
                     ),
@@ -243,6 +246,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
+        ),
         );
       },
     );

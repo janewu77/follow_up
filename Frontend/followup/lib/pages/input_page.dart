@@ -5,6 +5,7 @@ import '../widgets/input_area.dart';
 import '../widgets/image_picker_widget.dart';
 import '../widgets/loading_overlay.dart';
 import '../widgets/error_dialog.dart';
+import '../theme/app_theme.dart';
 
 // 输入页面
 class InputPage extends StatefulWidget {
@@ -92,10 +93,14 @@ class _InputPageState extends State<InputPage>
           isLoading: eventsProvider.isParsing,
           message: 'AI 正在识别活动信息...',
           child: Scaffold(
+            backgroundColor: AppColors.backgroundStart,
             appBar: AppBar(
+              backgroundColor: AppColors.cardBg,
               title: const Text('添加活动'),
               bottom: TabBar(
                 controller: _tabController,
+                labelColor: AppColors.primary,
+                indicatorColor: AppColors.primary,
                 tabs: const [
                   Tab(
                     icon: Icon(Icons.text_snippet),
@@ -108,7 +113,8 @@ class _InputPageState extends State<InputPage>
                 ],
               ),
             ),
-            body: TabBarView(
+            body: SimpleWarmBackground(
+              child: TabBarView(
               controller: _tabController,
               children: [
                 // 文字输入 Tab
@@ -127,17 +133,22 @@ class _InputPageState extends State<InputPage>
                 ),
               ],
             ),
-            bottomNavigationBar: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: FilledButton.icon(
-                  onPressed: eventsProvider.isParsing ? null : _parseEvent,
-                  icon: const Icon(Icons.auto_awesome),
-                  label: const Text('识别日程'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            ),
+            bottomNavigationBar: Container(
+              color: AppColors.cardBg,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FilledButton.icon(
+                    onPressed: eventsProvider.isParsing ? null : _parseEvent,
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text('识别日程'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
                     ),
                   ),
                 ),

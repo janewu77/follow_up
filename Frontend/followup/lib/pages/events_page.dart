@@ -7,6 +7,7 @@ import 'package:universal_html/html.dart' as html;
 import '../providers/events_provider.dart';
 import '../widgets/event_card.dart';
 import '../widgets/error_dialog.dart';
+import '../theme/app_theme.dart';
 
 // 活动列表页面
 class EventsPage extends StatefulWidget {
@@ -97,47 +98,54 @@ class _EventsPageState extends State<EventsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundStart,
       appBar: AppBar(
+        backgroundColor: AppColors.cardBg,
         title: const Text('活动列表'),
         bottom: TabBar(
           controller: _tabController,
+          labelColor: AppColors.primary,
+          indicatorColor: AppColors.primary,
           tabs: const [
             Tab(text: '全部活动'),
             Tab(text: '已关注'),
           ],
         ),
       ),
-      body: Consumer<EventsProvider>(
-        builder: (context, eventsProvider, child) {
-          if (eventsProvider.isLoading && eventsProvider.events.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: SimpleWarmBackground(
+        child: Consumer<EventsProvider>(
+          builder: (context, eventsProvider, child) {
+            if (eventsProvider.isLoading && eventsProvider.events.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              // 全部活动
-              _EventsList(
-                events: eventsProvider.events,
-                eventsProvider: eventsProvider,
-                onDelete: _deleteEvent,
-                onDownloadIcs: _downloadIcs,
-                emptyMessage: '还没有活动',
-              ),
-              // 已关注
-              _EventsList(
-                events: eventsProvider.followedEvents,
-                eventsProvider: eventsProvider,
-                onDelete: _deleteEvent,
-                onDownloadIcs: _downloadIcs,
-                emptyMessage: '还没有关注的活动',
-              ),
-            ],
-          );
-        },
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                // 全部活动
+                _EventsList(
+                  events: eventsProvider.events,
+                  eventsProvider: eventsProvider,
+                  onDelete: _deleteEvent,
+                  onDownloadIcs: _downloadIcs,
+                  emptyMessage: '还没有活动',
+                ),
+                // 已关注
+                _EventsList(
+                  events: eventsProvider.followedEvents,
+                  eventsProvider: eventsProvider,
+                  onDelete: _deleteEvent,
+                  onDownloadIcs: _downloadIcs,
+                  emptyMessage: '还没有关注的活动',
+                ),
+              ],
+            );
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.pushNamed(context, '/input'),
+        backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add),
         label: const Text('添加活动'),
       ),

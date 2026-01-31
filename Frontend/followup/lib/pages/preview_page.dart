@@ -9,6 +9,7 @@ import '../providers/events_provider.dart';
 import '../widgets/loading_overlay.dart';
 import '../widgets/error_dialog.dart';
 import '../utils/date_formatter.dart';
+import '../theme/app_theme.dart';
 
 // 日程预览/编辑页面
 class PreviewPage extends StatefulWidget {
@@ -233,8 +234,14 @@ class _PreviewPageState extends State<PreviewPage> {
     // 如果还没有初始化数据
     if (!mounted || _events.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('日程预览')),
-        body: const Center(child: CircularProgressIndicator()),
+        backgroundColor: AppColors.backgroundStart,
+        appBar: AppBar(
+          backgroundColor: AppColors.cardBg,
+          title: const Text('日程预览'),
+        ),
+        body: const SimpleWarmBackground(
+          child: Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
@@ -242,7 +249,9 @@ class _PreviewPageState extends State<PreviewPage> {
       isLoading: _isSaving,
       message: '保存中...',
       child: Scaffold(
+        backgroundColor: AppColors.backgroundStart,
         appBar: AppBar(
+          backgroundColor: AppColors.cardBg,
           title: Text(_isEditing ? '编辑活动' : '确认活动'),
           actions: [
             if (_events.length > 1)
@@ -257,24 +266,25 @@ class _PreviewPageState extends State<PreviewPage> {
               ),
           ],
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 多个活动时显示切换提示
-              if (_events.length > 1) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+        body: SimpleWarmBackground(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 多个活动时显示切换提示
+                if (_events.length > 1) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.info_outline,
-                        color: theme.colorScheme.primary,
+                        color: AppColors.primary,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
@@ -295,40 +305,47 @@ class _PreviewPageState extends State<PreviewPage> {
             ],
           ),
         ),
-        bottomNavigationBar: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _downloadIcs,
-                    icon: const Icon(Icons.download),
-                    label: const Text('下载 ICS'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+        ),
+        bottomNavigationBar: Container(
+          color: AppColors.cardBg,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _downloadIcs,
+                      icon: const Icon(Icons.download),
+                      label: const Text('下载 ICS'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: FilledButton.icon(
-                    onPressed: _saveEvent,
-                    icon: const Icon(Icons.save),
-                    label: const Text('保存活动'),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton.icon(
+                      onPressed: _saveEvent,
+                      icon: const Icon(Icons.save),
+                      label: const Text('保存活动'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
