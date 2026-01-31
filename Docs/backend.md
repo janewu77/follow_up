@@ -91,6 +91,7 @@
       "location": "星巴克",
       "description": null,
       "source_type": "text",
+      "source_thumbnail": null,
       "is_followed": false
     }
   ],
@@ -98,9 +99,113 @@
 }
 ```
 
+> **注意**：当 `input_type` 为 `image` 时，`source_thumbnail` 会自动生成为 200x200 的 JPEG 缩略图（base64 编码），方便前端展示图片来源
+```
+
 ---
 
-### 1.3 活动管理接口
+### 1.3 智能对话接口
+
+#### POST /api/chat
+
+智能对话接口，基于 LangGraph 的 Agent，支持意图识别和多轮对话。
+
+**功能特性**：
+- 意图识别：自动识别用户意图（闲聊/创建日程/修改日程/删除日程/拒绝）
+- 图片+文字输入：支持同时上传图片和文字消息
+- 对话记忆：维护会话上下文，支持多轮对话
+- 智能操作：根据意图自动执行相应的日程操作
+
+**Header**: `Authorization: Bearer <token>`
+
+**请求体**:
+```json
+{
+  "message": "下周三下午2点开会",
+  "image_base64": "data:image/jpeg;base64,/9j/4AAQ...",  // 可选
+  "session_id": "uuid-xxx"  // 可选，用于多轮对话
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| message | string | 是 | 用户消息内容 |
+| image_base64 | string | 否 | 图片 base64 编码（支持 data URI 格式） |
+| session_id | string | 否 | 会话ID，用于维护对话上下文。首次请求可不传，系统会自动生成 |
+
+**响应 200**:
+```json
+{
+  "message": "好的，我已经为您创建了日程：下周三（2月5日）下午2点开会",
+  "intent": "create_event",
+  "session_id": "uuid-xxx",
+  "action_result": {
+    "event_id": 123,
+    "title": "开会",
+    "start_time": "2026-02-05T14:00:00+08:00"
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| message | string | Agent 回复消息 |
+| intent | string | 识别的意图：`chat`（闲聊）/ `create_event`（创建日程）/ `update_event`（修改日程）/ `delete_event`（删除日程）/ `reject`（拒绝，超出范围） |
+| session_id | string | 会话ID，用于后续多轮对话 |
+| action_result | object | 操作结果（如创建的日程详情），仅在成功执行操作时返回 |
+
+**意图说明**：
+- `chat`: 普通闲聊，Agent 会友好回复
+- `create_event`: 创建新日程，Agent 会解析消息并创建日程
+- `update_event`: 修改现有日程，Agent 会匹配日程并更新
+- `delete_event`: 删除日程，Agent 会匹配日程并删除
+- `reject`: 请求超出范围，Agent 会礼貌拒绝
+
+**多轮对话示例**：
+```bash
+# 第一轮：创建日程
+POST /api/chat
+{
+  "message": "下周三下午2点开会"
+}
+# 响应：session_id = "abc123"
+
+# 第二轮：修改刚才创建的日程（使用相同的 session_id）
+POST /api/chat
+{
+  "message": "改成下午3点",
+  "session_id": "abc123"
+}
+# Agent 会理解上下文，修改刚才创建的日程
+```
+
+**错误响应**:
+- `401`: 未认证或 Token 无效
+- `422`: 请求参数验证失败（如 message 为空）
+- `500`: 服务器内部错误
+
+---
+
+#### DELETE /api/chat/{session_id}
+
+清除指定会话的对话历史。
+
+**Header**: `Authorization: Bearer <token>`
+
+**路径参数**:
+- `session_id`: 会话ID
+
+**响应 200**:
+```json
+{
+  "message": "对话历史已清除",
+  "session_id": "uuid-xxx"
+}
+```
+
+---
+
+### 1.4 活动管理接口
 
 #### GET /api/events
 获取用户的活动列表
@@ -123,6 +228,8 @@
       "end_time": "2026-02-15T22:00:00+01:00",
       "location": "Elbphilharmonie",
       "description": "贝多芬第九交响曲",
+      "source_type": "image",
+      "source_thumbnail": "/9j/4AAQSkZJRg...(base64 缩略图)",
       "is_followed": true,
       "created_at": "2026-01-31T10:00:00Z"
     }
@@ -146,9 +253,21 @@
   "location": "星巴克",
   "description": "记得带PPT",
   "source_type": "text",
+  "source_thumbnail": null,
   "is_followed": true
 }
 ```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| title | string | 是 | 活动标题 |
+| start_time | datetime | 是 | 开始时间 |
+| end_time | datetime | 否 | 结束时间 |
+| location | string | 否 | 地点 |
+| description | string | 否 | 描述 |
+| source_type | string | 否 | 来源类型：text/image/voice/manual |
+| source_thumbnail | string | 否 | 图片来源的缩略图（base64 编码） |
+| is_followed | bool | 否 | 是否已 Follow（默认 true） |
 
 **响应 201**: 返回创建的 event 对象
 
@@ -186,7 +305,7 @@
 
 ---
 
-### 1.4 健康检查
+### 1.5 健康检查
 
 #### GET /api/health
 
@@ -219,10 +338,22 @@
 | end_time | DateTime | 结束时间（可空） |
 | location | String(500) | 地点（可空） |
 | description | Text | 描述（可空） |
-| source_type | String(50) | 来源类型：text/image/voice |
+| source_type | String(50) | 来源类型：text/image/voice/manual |
 | source_content | Text | 原始输入内容 |
+| source_thumbnail | Text | 图片来源的缩略图（base64，约 200x200） |
 | is_followed | Boolean | 是否已 Follow |
 | created_at | DateTime | 创建时间 |
+
+### Conversation 表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Integer | 主键 |
+| session_id | String(100) | 会话ID，唯一 |
+| user_id | Integer | 外键 -> users.id |
+| messages | JSON | 对话消息列表（存储历史对话） |
+| created_at | DateTime | 创建时间 |
+| updated_at | DateTime | 更新时间 |
 
 ### 预置用户
 
@@ -281,12 +412,18 @@ Backend/
 │   ├── __init__.py
 │   ├── auth.py          # /api/auth/*
 │   ├── users.py         # /api/user/*
+│   ├── parse.py         # /api/parse
 │   ├── events.py        # /api/events/*
-│   └── parse.py         # /api/parse
+│   └── chat.py          # /api/chat (智能对话 Agent)
 ├── services/
 │   ├── __init__.py
 │   ├── llm_service.py   # LangChain 集成
-│   └── ics_service.py   # ICS 生成
+│   ├── image_utils.py   # 图片处理（缩略图生成）
+│   ├── agent/           # LangGraph Agent
+│   │   ├── graph.py     # Agent state graph
+│   │   ├── memory.py    # Conversation memory
+│   │   └── prompts/     # Agent prompts
+│   └── prompts/         # LLM prompts
 └── requirements.txt
 ```
 
@@ -295,11 +432,17 @@ Backend/
 ## 五、环境变量
 
 ```bash
-# .env
+# .env（开发环境）
 DATABASE_URL=sqlite:///./followup.db
 OPENAI_API_KEY=sk-xxx
 # JWT 已替换为固定 Token 认证（Token = 密码）
+
+# 生产环境（PostgreSQL）
+DATABASE_URL=postgresql://user:password@host:port/database
+OPENAI_API_KEY=sk-xxx
 ```
+
+> **PostgreSQL 部署**：只需设置 `DATABASE_URL` 环境变量即可切换到 PostgreSQL，无需修改代码。启动时会自动创建表结构和预置用户。
 
 ---
 
@@ -437,6 +580,7 @@ curl -X POST "http://localhost:8000/api/events" \
   "location": "Conference Room A",
   "description": "Weekly sync",
   "source_type": "text",
+  "source_thumbnail": null,
   "is_followed": true,
   "created_at": "2026-01-31T12:00:00"
 }
@@ -508,7 +652,63 @@ curl -X GET "http://localhost:8000/api/events/1/ics" \
 
 ---
 
-### 7.11 健康检查（无需认证）
+### 7.11 智能对话
+
+```bash
+# 创建日程（第一轮对话）
+curl -X POST "http://localhost:8000/api/chat" \
+  -H "Authorization: Bearer alice123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "下周三下午2点开会"
+  }'
+```
+
+**响应**：
+```json
+{
+  "message": "好的，我已经为您创建了日程：下周三（2月5日）下午2点开会",
+  "intent": "create_event",
+  "session_id": "abc123-def456-...",
+  "action_result": {
+    "event_id": 123,
+    "title": "开会",
+    "start_time": "2026-02-05T14:00:00+08:00"
+  }
+}
+```
+
+```bash
+# 多轮对话：修改刚才创建的日程（使用 session_id）
+curl -X POST "http://localhost:8000/api/chat" \
+  -H "Authorization: Bearer alice123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "改成下午3点",
+    "session_id": "abc123-def456-..."
+  }'
+```
+
+```bash
+# 带图片的对话
+curl -X POST "http://localhost:8000/api/chat" \
+  -H "Authorization: Bearer alice123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "这张海报上的活动帮我添加到日程",
+    "image_base64": "data:image/jpeg;base64,/9j/4AAQ..."
+  }'
+```
+
+```bash
+# 清除对话历史
+curl -X DELETE "http://localhost:8000/api/chat/abc123-def456-..." \
+  -H "Authorization: Bearer alice123"
+```
+
+---
+
+### 7.12 健康检查（无需认证）
 
 ```bash
 curl -X GET "http://localhost:8000/api/health"

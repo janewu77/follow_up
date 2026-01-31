@@ -37,15 +37,18 @@ Backend/
 │   ├── auth.py          # /api/auth/*
 │   ├── users.py         # /api/user/*
 │   ├── parse.py         # /api/parse
-│   └── events.py        # /api/events/*
+│   ├── events.py        # /api/events/*
+│   └── chat.py          # /api/chat (智能对话 Agent)
 ├── services/            # Services layer
 │   ├── __init__.py
 │   ├── llm_service.py   # LangChain integration (✅ implemented)
 │   └── README.md        # LLM service documentation
-└── tests/               # TODO: create
+└── tests/               # Unit tests
     ├── test_auth.py
     ├── test_parse.py
-    └── test_events.py
+    ├── test_events.py
+    ├── test_chat.py     # Chat Agent tests
+    └── test_database.py
 ```
 
 ---
@@ -57,12 +60,115 @@ Backend/
 | POST | `/api/auth/login` | User login, returns JWT |
 | GET | `/api/user/me` | Get current user info |
 | POST | `/api/parse` | Parse text/image to events |
+| POST | `/api/chat` | Intelligent chat agent (intent recognition, event management) |
+| DELETE | `/api/chat/{session_id}` | Clear conversation history |
 | GET | `/api/events` | List user's events |
 | POST | `/api/events` | Create new event |
 | PUT | `/api/events/{id}` | Update event |
 | DELETE | `/api/events/{id}` | Delete event |
 | GET | `/api/events/{id}/ics` | Download ICS file |
 | GET | `/api/health` | Health check |
+
+---
+
+## Chat API 详细说明
+
+### POST `/api/chat`
+
+智能对话接口，基于 LangGraph 的 Agent，支持意图识别和多轮对话。
+
+**功能特性**：
+- 意图识别：自动识别用户意图（闲聊/创建日程/修改日程/删除日程/拒绝）
+- 图片+文字输入：支持同时上传图片和文字消息
+- 对话记忆：维护会话上下文，支持多轮对话
+- 智能操作：根据意图自动执行相应的日程操作
+
+**Header**: `Authorization: Bearer <token>`
+
+**请求体**:
+```json
+{
+  "message": "下周三下午2点开会",
+  "image_base64": "data:image/jpeg;base64,/9j/4AAQ...",  // 可选
+  "session_id": "uuid-xxx"  // 可选，用于多轮对话
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| message | string | 是 | 用户消息内容 |
+| image_base64 | string | 否 | 图片 base64 编码（支持 data URI 格式） |
+| session_id | string | 否 | 会话ID，用于维护对话上下文。首次请求可不传，系统会自动生成 |
+
+**响应 200**:
+```json
+{
+  "message": "好的，我已经为您创建了日程：下周三（2月5日）下午2点开会",
+  "intent": "create_event",
+  "session_id": "uuid-xxx",
+  "action_result": {
+    "event_id": 123,
+    "title": "开会",
+    "start_time": "2026-02-05T14:00:00+08:00"
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| message | string | Agent 回复消息 |
+| intent | string | 识别的意图：`chat`（闲聊）/ `create_event`（创建日程）/ `update_event`（修改日程）/ `delete_event`（删除日程）/ `reject`（拒绝，超出范围） |
+| session_id | string | 会话ID，用于后续多轮对话 |
+| action_result | object | 操作结果（如创建的日程详情），仅在成功执行操作时返回 |
+
+**意图说明**：
+- `chat`: 普通闲聊，Agent 会友好回复
+- `create_event`: 创建新日程，Agent 会解析消息并创建日程
+- `update_event`: 修改现有日程，Agent 会匹配日程并更新
+- `delete_event`: 删除日程，Agent 会匹配日程并删除
+- `reject`: 请求超出范围，Agent 会礼貌拒绝
+
+**多轮对话示例**：
+```bash
+# 第一轮：创建日程
+POST /api/chat
+{
+  "message": "下周三下午2点开会"
+}
+# 响应：session_id = "abc123"
+
+# 第二轮：修改刚才创建的日程（使用相同的 session_id）
+POST /api/chat
+{
+  "message": "改成下午3点",
+  "session_id": "abc123"
+}
+# Agent 会理解上下文，修改刚才创建的日程
+```
+
+**错误响应**:
+- `401`: 未认证或 Token 无效
+- `422`: 请求参数验证失败（如 message 为空）
+- `500`: 服务器内部错误
+
+---
+
+### DELETE `/api/chat/{session_id}`
+
+清除指定会话的对话历史。
+
+**Header**: `Authorization: Bearer <token>`
+
+**路径参数**:
+- `session_id`: 会话ID
+
+**响应 200**:
+```json
+{
+  "message": "对话历史已清除",
+  "session_id": "uuid-xxx"
+}
+```
 
 ---
 
@@ -112,12 +218,13 @@ uv run ruff check .
 
 ### Phase 1: Core (P0)
 
-- [x] Database models (User, Event) with SQLAlchemy
+- [x] Database models (User, Event, Conversation) with SQLAlchemy
 - [x] User authentication with database
 - [x] LangChain text parsing integration
 - [x] OpenAI Vision image parsing
 - [x] Events CRUD with database
 - [x] ICS file generation
+- [x] Intelligent chat agent with LangGraph (intent recognition, conversation memory)
 
 ### Phase 2: Enhanced (P1)
 
