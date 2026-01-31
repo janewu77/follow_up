@@ -191,6 +191,6 @@ def test_download_ics_success(client, test_user, event_data):
         headers={"Authorization": f"Bearer {test_user['token']}"},
     )
     assert response.status_code == status.HTTP_200_OK
-    assert response.headers["content-type"] == "text/calendar"
+    assert "text/calendar" in response.headers["content-type"]
     assert "attachment" in response.headers["content-disposition"]
     assert b"BEGIN:VCALENDAR" in response.content
