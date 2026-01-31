@@ -114,5 +114,56 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
+    from pathlib import Path
+    
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    # 可以通过环境变量禁用 reload（如果频繁重载问题持续）
+    enable_reload = os.getenv("RELOAD", "true").lower() == "true"
+    
+    if enable_reload:
+        # 获取项目根目录
+        backend_dir = Path(__file__).parent
+        
+        # 只监控 Python 代码目录，排除数据库、日志等目录
+        reload_dirs = [
+            str(backend_dir / "routers"),
+            str(backend_dir / "services"),
+            str(backend_dir),
+        ]
+        
+        # 排除数据库文件和日志文件，避免频繁重载
+        reload_excludes = [
+            "*.db",
+            "*.db-wal",  # SQLite WAL 文件
+            "*.db-shm",  # SQLite 共享内存文件
+            "*.sqlite3",
+            "*.log",
+            "logs/*",
+            "__pycache__/*",
+            ".venv/*",
+            ".git/*",
+            "*.pyc",
+            ".env",
+            "*.md",
+            "*.txt",
+            "*.toml",
+            "*.lock",
+        ]
+        
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0",
+            port=port,
+            reload=True,
+            reload_dirs=reload_dirs,  # 只监控这些目录
+            reload_excludes=reload_excludes,
+            reload_includes=["*.py"],  # 只监控 Python 文件
+        )
+    else:
+        # 禁用 reload 模式（如果频繁重载问题持续）
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0",
+            port=port,
+            reload=False,
+        )

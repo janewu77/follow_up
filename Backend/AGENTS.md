@@ -191,6 +191,10 @@ POST /api/chat
 uv sync
 
 # Run development server
+# 方式一：使用启动脚本（推荐，自动排除数据库和日志文件）
+python run_dev.py
+
+# 方式二：直接使用 uvicorn（会频繁重载）
 uv run uvicorn main:app --reload
 
 # Run tests (ALWAYS use venv/virtual environment)
