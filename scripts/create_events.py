@@ -11,12 +11,11 @@ except ImportError:
     print("   运行: pip install requests")
     sys.exit(1)
 
-import json
 from datetime import datetime, timedelta
 
 # 配置
-BASE_URL = "https://web-production-d2e00.up.railway.app"  # 线上地址
-# BASE_URL = "http://localhost:8000"  # 本地地址
+# BASE_URL = "https://web-production-d2e00.up.railway.app"  # 线上地址
+BASE_URL = "http://localhost:8000"  # 本地地址
 USERNAME = "alice"
 PASSWORD = "alice123"
 

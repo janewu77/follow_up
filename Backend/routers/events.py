@@ -20,6 +20,9 @@ from schemas import (
 from auth import get_current_user
 from database import get_db
 from models import User, Event
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/events", tags=["活动管理"])
 
