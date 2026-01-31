@@ -1,5 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
@@ -18,10 +23,15 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
+  final ImagePicker _imagePicker = ImagePicker();
   bool _isTyping = false;
   String _currentResponse = '';
   String? _currentIntent;
   StreamSubscription<ChatEvent>? _streamSubscription;
+  
+  // Selected images for sending
+  List<XFile> _selectedImages = [];
+  List<String> _selectedImagesBase64 = [];
 
   @override
   void initState() {
@@ -29,6 +39,10 @@ class _ChatPageState extends State<ChatPage> {
     // Add welcome message
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _addWelcomeMessage();
+    });
+    // Listen to text changes to update send button state
+    _messageController.addListener(() {
+      setState(() {});
     });
   }
 
@@ -54,22 +68,173 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
+  /// Pick image from gallery
+  Future<void> _pickImageFromGallery() async {
+    try {
+      final List<XFile> images = await _imagePicker.pickMultiImage(
+        imageQuality: 80,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      
+      if (images.isNotEmpty) {
+        await _processSelectedImages(images);
+      }
+    } catch (e) {
+      _showImageError('Failed to pick images: $e');
+    }
+  }
+
+  /// Take photo with camera
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      
+      if (image != null) {
+        await _processSelectedImages([image]);
+      }
+    } catch (e) {
+      _showImageError('Failed to take photo: $e');
+    }
+  }
+
+  /// Process selected images and convert to base64
+  Future<void> _processSelectedImages(List<XFile> images) async {
+    final List<String> base64Images = [];
+    
+    for (final image in images) {
+      final bytes = await image.readAsBytes();
+      final base64String = base64Encode(bytes);
+      base64Images.add(base64String);
+    }
+    
+    setState(() {
+      _selectedImages = [..._selectedImages, ...images];
+      _selectedImagesBase64 = [..._selectedImagesBase64, ...base64Images];
+    });
+  }
+
+  /// Remove a selected image
+  void _removeSelectedImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+      _selectedImagesBase64.removeAt(index);
+    });
+  }
+
+  /// Clear all selected images
+  void _clearSelectedImages() {
+    setState(() {
+      _selectedImages.clear();
+      _selectedImagesBase64.clear();
+    });
+  }
+
+  /// Show error message
+  void _showImageError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+
+  /// Show attachment options bottom sheet
+  void _showAttachmentOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
+                ),
+                title: const Text('Photo Library'),
+                subtitle: const Text('Choose from gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImageFromGallery();
+                },
+              ),
+              if (!kIsWeb) ...[
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.camera_alt_outlined, color: AppColors.accent),
+                  ),
+                  title: const Text('Camera'),
+                  subtitle: const Text('Take a photo'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _takePhoto();
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty || _isTyping) return;
+    final hasImages = _selectedImages.isNotEmpty;
+    
+    // Allow sending with just images (no text required)
+    if (text.isEmpty && !hasImages) return;
+    if (_isTyping) return;
 
     // Get username as session_id
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final username = authProvider.user?.username ?? 'anonymous';
 
-    // Add user message
+    // Capture images before clearing
+    final imagesToSend = List<String>.from(_selectedImagesBase64);
+    final imageFiles = List<XFile>.from(_selectedImages);
+
+    // Add user message with images
     setState(() {
       _messages.add(ChatMessage(
-        content: text,
+        content: text.isEmpty ? '📷 Sent ${imageFiles.length} image${imageFiles.length > 1 ? 's' : ''}' : text,
         isUser: true,
         timestamp: DateTime.now(),
+        images: imageFiles,
       ));
       _messageController.clear();
+      _clearSelectedImages();
       _isTyping = true;
       _currentResponse = '';
       _currentIntent = null;
@@ -77,10 +242,11 @@ class _ChatPageState extends State<ChatPage> {
 
     _scrollToBottom();
 
-    // Start streaming with username as session_id
+    // Start streaming with username as session_id and images
     _streamSubscription = ChatService.sendMessageStream(
-      message: text,
+      message: text.isEmpty ? 'Please analyze these images' : text,
       sessionId: username,
+      imagesBase64: imagesToSend.isNotEmpty ? imagesToSend : null,
     ).listen(
       (event) {
         _handleChatEvent(event);
@@ -199,7 +365,7 @@ class _ChatPageState extends State<ChatPage> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundStart,
-      body: SimpleWarmBackground(
+      body: AnimatedWarmBackground(
         child: SafeArea(
           child: Column(
             children: [
@@ -415,7 +581,6 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildInputArea(AppLocalizations l10n) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.cardBg,
         boxShadow: [
@@ -428,57 +593,184 @@ class _ChatPageState extends State<ChatPage> {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Attachment button
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline),
-              color: AppColors.primary,
-              onPressed: () => Navigator.pushNamed(context, '/input'),
-            ),
-            const SizedBox(width: 8),
-            // Text input
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundStart,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: TextField(
-                  controller: _messageController,
-                  decoration: InputDecoration(
-                    hintText: l10n.chatInputHint,
-                    hintStyle: TextStyle(color: AppColors.textMuted),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
+            // Image preview area
+            if (_selectedImages.isNotEmpty) _buildImagePreview(),
+            // Input row
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Attachment button with options
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    color: AppColors.primary,
+                    onPressed: _isTyping ? null : _showAttachmentOptions,
+                  ),
+                  const SizedBox(width: 8),
+                  // Text input
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundStart,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: _selectedImages.isNotEmpty 
+                              ? 'Add a message or send images...' 
+                              : l10n.chatInputHint,
+                          hintStyle: TextStyle(color: AppColors.textMuted),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                        maxLines: null,
+                        enabled: !_isTyping,
+                      ),
                     ),
                   ),
-                  onSubmitted: (_) => _sendMessage(),
-                  maxLines: null,
-                  enabled: !_isTyping,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Send button
-            Container(
-              decoration: BoxDecoration(
-                color: _isTyping ? AppColors.textMuted : AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.send_rounded),
-                color: Colors.white,
-                onPressed: _isTyping ? null : _sendMessage,
+                  const SizedBox(width: 8),
+                  // Send button
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _isTyping 
+                          ? AppColors.textMuted 
+                          : (_messageController.text.trim().isNotEmpty || _selectedImages.isNotEmpty)
+                              ? AppColors.primary
+                              : AppColors.textMuted.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.send_rounded),
+                      color: Colors.white,
+                      onPressed: _isTyping ? null : _sendMessage,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Build image preview area
+  Widget _buildImagePreview() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.photo_library, size: 16, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              Text(
+                '${_selectedImages.length} image${_selectedImages.length > 1 ? 's' : ''} selected',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: _clearSelectedImages,
+                child: Text(
+                  'Clear all',
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 80,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _selectedImages.length,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: _buildImageWidget(_selectedImages[index]),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () => _removeSelectedImage(index),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build image widget (handles both web and mobile)
+  Widget _buildImageWidget(XFile image) {
+    if (kIsWeb) {
+      return FutureBuilder<Uint8List>(
+        future: image.readAsBytes(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return Image.memory(
+              snapshot.data!,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+            );
+          }
+          return Container(
+            width: 80,
+            height: 80,
+            color: AppColors.border,
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+      );
+    } else {
+      return Image.file(
+        File(image.path),
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+      );
+    }
   }
 }
 
@@ -489,6 +781,7 @@ class ChatMessage {
   final DateTime timestamp;
   final String? intent;
   final bool isError;
+  final List<XFile>? images;
 
   ChatMessage({
     required this.content,
@@ -496,6 +789,7 @@ class ChatMessage {
     required this.timestamp,
     this.intent,
     this.isError = false,
+    this.images,
   });
 }
 
@@ -508,6 +802,7 @@ class _ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
+    final hasImages = message.images != null && message.images!.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -574,18 +869,26 @@ class _ChatBubble extends StatelessWidget {
                       ),
                     ),
                   ],
-                  SelectableText(
-                    message.content,
-                    style: TextStyle(
-                      color: isUser 
-                          ? Colors.white 
-                          : message.isError 
-                              ? AppColors.error 
-                              : AppColors.textPrimary,
-                      fontSize: 15,
-                      height: 1.5,
+                  // Display images if present
+                  if (hasImages) ...[
+                    _buildMessageImages(message.images!),
+                    if (message.content.isNotEmpty && !message.content.startsWith('📷'))
+                      const SizedBox(height: 8),
+                  ],
+                  // Display text content (hide auto-generated image message)
+                  if (!message.content.startsWith('📷'))
+                    SelectableText(
+                      message.content,
+                      style: TextStyle(
+                        color: isUser 
+                            ? Colors.white 
+                            : message.isError 
+                                ? AppColors.error 
+                                : AppColors.textPrimary,
+                        fontSize: 15,
+                        height: 1.5,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -601,6 +904,59 @@ class _ChatBubble extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Build images grid in message bubble
+  Widget _buildMessageImages(List<XFile> images) {
+    if (images.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: _buildSingleImage(images.first),
+      );
+    }
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: images.take(4).map((image) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            width: 100,
+            height: 100,
+            child: _buildSingleImage(image),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Build a single image widget
+  Widget _buildSingleImage(XFile image) {
+    if (kIsWeb) {
+      return FutureBuilder<Uint8List>(
+        future: image.readAsBytes(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return Image.memory(
+              snapshot.data!,
+              fit: BoxFit.cover,
+            );
+          }
+          return Container(
+            color: AppColors.border,
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+      );
+    } else {
+      return Image.file(
+        File(image.path),
+        fit: BoxFit.cover,
+      );
+    }
   }
 }
 

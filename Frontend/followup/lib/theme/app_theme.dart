@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 // FollowUP 品牌色彩 - 温暖的米色 + 深青绿
@@ -141,6 +142,202 @@ class SimpleWarmBackground extends StatelessWidget {
         gradient: WarmGradient.background,
       ),
       child: child,
+    );
+  }
+}
+
+// 带动画的温暖背景 - 用于聊天页面等
+class AnimatedWarmBackground extends StatefulWidget {
+  final Widget child;
+  
+  const AnimatedWarmBackground({super.key, required this.child});
+
+  @override
+  State<AnimatedWarmBackground> createState() => _AnimatedWarmBackgroundState();
+}
+
+class _AnimatedWarmBackgroundState extends State<AnimatedWarmBackground>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 8),
+      vsync: this,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: WarmGradient.background,
+      ),
+      child: Stack(
+        children: [
+          // Animated floating shapes
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              final animValue = _controller.value;
+              
+              return Stack(
+                children: [
+                  // Top-right floating circle - teal tint
+                  Positioned(
+                    top: -80 + (20 * math.sin(animValue * math.pi)),
+                    right: -60 + (15 * math.cos(animValue * math.pi)),
+                    child: _AnimatedBubble(
+                      size: size.width * 0.5,
+                      color: const Color(0xFFD4E8E4).withValues(alpha: 0.4),
+                    ),
+                  ),
+                  
+                  // Left floating circle - warm beige
+                  Positioned(
+                    top: size.height * 0.3 + (25 * math.sin(animValue * math.pi * 0.8)),
+                    left: -100 + (10 * math.cos(animValue * math.pi * 0.9)),
+                    child: _AnimatedBubble(
+                      size: size.width * 0.45,
+                      color: const Color(0xFFE8DDD0).withValues(alpha: 0.5),
+                    ),
+                  ),
+                  
+                  // Bottom-right floating circle - soft peach
+                  Positioned(
+                    bottom: size.height * 0.15 + (18 * math.cos(animValue * math.pi * 0.7)),
+                    right: -80 + (12 * math.sin(animValue * math.pi * 1.1)),
+                    child: _AnimatedBubble(
+                      size: size.width * 0.4,
+                      color: const Color(0xFFE5D9C9).withValues(alpha: 0.45),
+                    ),
+                  ),
+                  
+                  // Small accent bubble - subtle teal
+                  Positioned(
+                    top: size.height * 0.55 + (15 * math.sin(animValue * math.pi * 1.2)),
+                    right: size.width * 0.2 + (8 * math.cos(animValue * math.pi)),
+                    child: _AnimatedBubble(
+                      size: 80,
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  
+                  // Small floating dot decorations
+                  ..._buildFloatingDots(size, animValue),
+                ],
+              );
+            },
+          ),
+          
+          // Content
+          widget.child,
+        ],
+      ),
+    );
+  }
+  
+  List<Widget> _buildFloatingDots(Size size, double animValue) {
+    return [
+      // Dot 1
+      Positioned(
+        top: size.height * 0.15 + (12 * math.sin(animValue * math.pi * 1.5)),
+        left: size.width * 0.15,
+        child: _FloatingDot(
+          size: 8,
+          color: AppColors.primary.withValues(alpha: 0.15),
+        ),
+      ),
+      // Dot 2
+      Positioned(
+        top: size.height * 0.4 + (10 * math.cos(animValue * math.pi * 1.3)),
+        right: size.width * 0.1,
+        child: _FloatingDot(
+          size: 6,
+          color: const Color(0xFF5ABFB3).withValues(alpha: 0.2),
+        ),
+      ),
+      // Dot 3
+      Positioned(
+        bottom: size.height * 0.35 + (8 * math.sin(animValue * math.pi * 0.9)),
+        left: size.width * 0.08,
+        child: _FloatingDot(
+          size: 10,
+          color: const Color(0xFFE8C8B8).withValues(alpha: 0.4),
+        ),
+      ),
+      // Dot 4
+      Positioned(
+        top: size.height * 0.7 + (14 * math.cos(animValue * math.pi * 1.1)),
+        right: size.width * 0.25,
+        child: _FloatingDot(
+          size: 7,
+          color: AppColors.accent.withValues(alpha: 0.12),
+        ),
+      ),
+    ];
+  }
+}
+
+// Animated bubble for background
+class _AnimatedBubble extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _AnimatedBubble({
+    required this.size,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color,
+            color.withValues(alpha: 0),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Small floating dot
+class _FloatingDot extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _FloatingDot({
+    required this.size,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+      ),
     );
   }
 }
