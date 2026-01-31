@@ -1,50 +1,30 @@
-# Cursor 2-Day AI Hackathon — Repo Template
+# FollowUP personal assistant
 
-![Cursor 2-Day AI Hackathon](https://ai-beavers.com/_next/image?url=%2Fimages%2Fhackathon-hero-20012026.png&w=1920&q=75)
+*Automatically synced with your [v0.app](https://v0.app) deployments*
 
-**How to use this template:**
-1. Click "Use this template" → "Create a new repository"
-2. Name your repo and set it to **Public**
-3. Replace this section with your project name and description
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/mengyus-projects-aa00e71b/v0-follow-up-personal-assistant)
+[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/nyiS35YblDF)
 
----
+## Overview
 
-# Project Name
+This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
+Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
 
-> One-line description of your project
+## Deployment
 
-## Tech Stack
+Your project is live at:
 
-What technologies power your project?
+**[https://vercel.com/mengyus-projects-aa00e71b/v0-follow-up-personal-assistant](https://vercel.com/mengyus-projects-aa00e71b/v0-follow-up-personal-assistant)**
 
-<!-- List your main technologies, frameworks, and services -->
+## Build your app
 
-- **Frontend**: e.g., Next.js, React, Tailwind
-- **Backend**: e.g., Node.js, Python, FastAPI
-- **Database**: e.g., Supabase, Firebase, PostgreSQL
-- **AI/ML**: e.g., OpenAI GPT-4, Gemini Pro
-- **Hosting**: e.g., Vercel, Railway
+Continue building your app on:
 
-## How to Run
+**[https://v0.app/chat/nyiS35YblDF](https://v0.app/chat/nyiS35YblDF)**
 
-Step-by-step instructions to run the project locally, including everything that needs to be set up.
+## How It Works
 
-```bash
-# Clone the repo
-git clone https://github.com/your-team/your-project.git
-cd your-project
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-cp .env.example .env
-# Add your API keys to .env
-
-# Run the development server
-npm run dev
-```
-
-## Details
-
-Add anything else you want to share: architecture diagrams, screenshots, challenges faced, future plans, etc.
+1. Create and modify your project using [v0.app](https://v0.app)
+2. Deploy your chats from the v0 interface
+3. Changes are automatically pushed to this repository
+4. Vercel deploys the latest version from this repository
