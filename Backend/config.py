@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     
     # OpenAI API 配置
     OPENAI_API_KEY: str = ""
-    OPENAI_MODEL: str = "gpt-4o-mini"  # 默认使用更经济的模型
+    OPENAI_MODEL: str = "gpt-5.2"  # 默认使用 GPT-5.2 模型
     
     # 从环境变量读取，如果没有则使用默认值
     class Config:
