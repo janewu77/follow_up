@@ -36,12 +36,27 @@ app = FastAPI(
 # 启动时初始化数据库
 @app.on_event("startup")
 async def startup_event():
-    """应用启动时初始化数据库"""
+    """应用启动时初始化数据库和运行迁移"""
     # 测试环境中跳过初始化（测试会自己管理数据库）
     if os.getenv("TESTING") == "1":
         return
     
+    # 创建表结构
     init_db()
+    
+    # 运行数据库迁移（添加缺失的列等）
+    # 迁移是幂等的，可以安全地多次运行
+    try:
+        from migrate_db import migrate_events_table
+        migrate_events_table()
+        logger.info("Database migration completed successfully")
+    except Exception as e:
+        # 迁移失败不影响应用启动，只记录警告
+        # 这允许应用在数据库结构不完整时仍能启动（用于调试）
+        logger.warning(f"Database migration failed (non-critical): {e}")
+        logger.warning("Application will continue to start, but some features may not work correctly")
+    
+    # 初始化预置用户
     db = SessionLocal()
     try:
         init_users(db)
