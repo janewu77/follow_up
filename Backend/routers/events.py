@@ -69,6 +69,93 @@ async def list_events(
     )
 
 
+@router.get("/search", response_model=EventListResponse)
+async def search_events(
+    q: str = Query(..., min_length=1, description="搜索查询（自然语言）"),
+    limit: int = Query(10, ge=1, le=50, description="返回结果数量"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    搜索活动（支持向量语义搜索）
+    
+    在 PostgreSQL 环境下使用向量相似度搜索，
+    在 SQLite 环境下降级为 LIKE 文本搜索。
+
+    需要认证：Authorization: Bearer <token>
+    """
+    from services.embedding_service import is_postgres, generate_embedding
+    from sqlalchemy import text, or_
+    
+    logger.info(f"Searching events for user {current_user.username}: '{q}' (limit={limit})")
+    
+    events = []
+    
+    if is_postgres():
+        # PostgreSQL: 使用向量相似度搜索
+        query_embedding = generate_embedding(q)
+        
+        if query_embedding:
+            # 向量搜索
+            embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
+            
+            result = db.execute(text(f"""
+                SELECT 
+                    id, title, start_time, end_time, location, description,
+                    source_type, source_thumbnail, is_followed, created_at,
+                    1 - (embedding <=> :embedding::vector) as similarity
+                FROM events
+                WHERE user_id = :user_id
+                    AND embedding IS NOT NULL
+                ORDER BY embedding <=> :embedding::vector
+                LIMIT :limit
+            """), {
+                "embedding": embedding_str,
+                "user_id": current_user.id,
+                "limit": limit,
+            })
+            
+            rows = result.fetchall()
+            for row in rows:
+                events.append(Event(
+                    id=row.id,
+                    title=row.title,
+                    start_time=row.start_time,
+                    end_time=row.end_time,
+                    location=row.location,
+                    description=row.description,
+                    source_type=row.source_type,
+                    source_thumbnail=row.source_thumbnail,
+                    is_followed=row.is_followed,
+                    created_at=row.created_at,
+                    user_id=current_user.id,
+                ))
+            
+            logger.info(f"Vector search found {len(events)} event(s)")
+        else:
+            # 无法生成 embedding，降级到文本搜索
+            logger.warning("Failed to generate embedding, falling back to text search")
+    
+    # 如果向量搜索没有结果或不支持，使用文本搜索
+    if not events:
+        # SQLite 或降级：使用 LIKE 文本搜索
+        search_pattern = f"%{q}%"
+        events = db.query(Event).filter(
+            Event.user_id == current_user.id,
+            or_(
+                Event.title.ilike(search_pattern),
+                Event.description.ilike(search_pattern),
+                Event.location.ilike(search_pattern),
+            )
+        ).order_by(Event.start_time).limit(limit).all()
+        
+        logger.info(f"Text search found {len(events)} event(s)")
+    
+    return EventListResponse(
+        events=[event_to_response(e) for e in events]
+    )
+
+
 @router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
 async def create_event(
     request: EventCreate,
