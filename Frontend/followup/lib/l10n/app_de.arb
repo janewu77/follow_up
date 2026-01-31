@@ -220,5 +220,20 @@
 
   "footerCTATitle": "Bereit, nie wieder eine Veranstaltung zu verpassen?",
   "footerCTASubtitle": "Starten Sie kostenlos mit FollowUP und lassen Sie KI Ihren Zeitplan verwalten",
-  "footerDescription": "Verwandeln Sie Lebensmomente in Kalendereinträge\nNie wieder Sorgen über Vergessen"
+  "footerDescription": "Verwandeln Sie Lebensmomente in Kalendereinträge\nNie wieder Sorgen über Vergessen",
+
+  "chatWelcome": "Hallo {username}! 👋 Ich bin Ihr FollowUP-Assistent. Erzählen Sie mir von einem Termin, den Sie zu Ihrem Kalender hinzufügen möchten, oder fügen Sie einen Text mit Termininfos ein.",
+  "@chatWelcome": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "chatStartHint": "Starten Sie ein Gespräch, um Termine hinzuzufügen",
+  "chatInputHint": "Beschreiben Sie einen Termin oder fügen Sie Text ein...",
+  "chatProcessing": "Ich habe Termininfos in Ihrer Nachricht gefunden! Soll ich die Details extrahieren und zu Ihrem Kalender hinzufügen?",
+  "chatExtractEvent": "Termin extrahieren",
+  "chatUploadImage": "Bild hochladen",
+  "chatViewEvents": "Meine Termine"
 }

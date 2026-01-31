@@ -626,4 +626,30 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get footerDescription =>
       'Verwandeln Sie Lebensmomente in Kalendereinträge\nNie wieder Sorgen über Vergessen';
+
+  @override
+  String chatWelcome(String username) {
+    return 'Hallo $username! 👋 Ich bin Ihr FollowUP-Assistent. Erzählen Sie mir von einem Termin, den Sie zu Ihrem Kalender hinzufügen möchten, oder fügen Sie einen Text mit Termininfos ein.';
+  }
+
+  @override
+  String get chatStartHint =>
+      'Starten Sie ein Gespräch, um Termine hinzuzufügen';
+
+  @override
+  String get chatInputHint =>
+      'Beschreiben Sie einen Termin oder fügen Sie Text ein...';
+
+  @override
+  String get chatProcessing =>
+      'Ich habe Termininfos in Ihrer Nachricht gefunden! Soll ich die Details extrahieren und zu Ihrem Kalender hinzufügen?';
+
+  @override
+  String get chatExtractEvent => 'Termin extrahieren';
+
+  @override
+  String get chatUploadImage => 'Bild hochladen';
+
+  @override
+  String get chatViewEvents => 'Meine Termine';
 }

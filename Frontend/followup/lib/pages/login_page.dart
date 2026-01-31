@@ -52,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
     );
 
     if (success && mounted) {
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacementNamed(context, '/chat');
     }
   }
 
@@ -192,44 +192,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Back button
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: Text(l10n.backToHome),
-                          ),
-
-                          const SizedBox(height: 32),
-
-                          // Test account info
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l10n.testAccount,
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  l10n.testAccountAlice,
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                                Text(
-                                  l10n.testAccountDemo,
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // 版本号
+                          // Version info
                           if (_version.isNotEmpty) ...[
                             const SizedBox(height: 24),
                             Text(
