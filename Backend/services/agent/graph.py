@@ -235,6 +235,30 @@ def handle_create_event(state: AgentState) -> AgentState:
             
             logger.info(f"Created {len(created_events)} event(s) from {len(images_base64)} image(s)")
             
+            # 为创建的事件生成 embedding（仅 PostgreSQL）
+            try:
+                from services.embedding_service import generate_event_embedding, is_postgres
+                from sqlalchemy import text
+                
+                if is_postgres():
+                    for event in created_events:
+                        embedding = generate_event_embedding(
+                            title=event.title,
+                            description=event.description,
+                            location=event.location,
+                        )
+                        if embedding:
+                            embedding_str = "[" + ",".join(map(str, embedding)) + "]"
+                            db.execute(text("""
+                                UPDATE events 
+                                SET embedding = :embedding::vector 
+                                WHERE id = :event_id
+                            """), {"embedding": embedding_str, "event_id": event.id})
+                    db.commit()
+                    logger.debug(f"Generated embeddings for {len(created_events)} events")
+            except Exception as e:
+                logger.warning(f"Failed to generate embeddings: {e}")
+            
             # 构建响应
             if len(created_events) == 1:
                 event = created_events[0]
@@ -332,6 +356,29 @@ def handle_create_event(state: AgentState) -> AgentState:
         
         logger.info(f"Created event: {event.title} (id={event.id})")
         
+        # 生成 embedding（仅 PostgreSQL）
+        try:
+            from services.embedding_service import generate_event_embedding, is_postgres
+            from sqlalchemy import text
+            
+            if is_postgres():
+                embedding = generate_event_embedding(
+                    title=event.title,
+                    description=event.description,
+                    location=event.location,
+                )
+                if embedding:
+                    embedding_str = "[" + ",".join(map(str, embedding)) + "]"
+                    db.execute(text("""
+                        UPDATE events 
+                        SET embedding = :embedding::vector 
+                        WHERE id = :event_id
+                    """), {"embedding": embedding_str, "event_id": event.id})
+                    db.commit()
+                    logger.debug(f"Generated embedding for event {event.id}")
+        except Exception as e:
+            logger.warning(f"Failed to generate embedding for event {event.id}: {e}")
+        
         # 构建响应
         response_text = f"好的，我已经为您创建了日程：\n\n"
         response_text += f"📅 **{event.title}**\n"
@@ -356,10 +403,17 @@ def handle_create_event(state: AgentState) -> AgentState:
         
     except Exception as e:
         logger.error(f"Failed to create event: {e}")
+        
+        has_image = state.get("image_base64") or state.get("images_base64")
+        if has_image:
+            response = "我看到了您上传的图片，但我需要更多信息来创建日程。\n\n请告诉我：\n📅 这个活动是什么时候？\n📍 在哪里举办？\n📝 还有其他需要记录的信息吗？"
+        else:
+            response = "我想帮您创建日程，但需要更多信息。\n\n请告诉我：\n📅 什么时候？（如：明天下午3点）\n📝 什么活动？（如：团队会议）\n📍 在哪里？（可选）"
+        
         return {
             **state,
-            "response": "抱歉，我无法从您的输入中提取日程信息。请提供更详细的信息，例如：时间、地点、活动内容。",
-            "action_result": {"action": "create_event", "error": str(e)},
+            "response": response,
+            "action_result": {"action": "create_event", "need_more_info": True},
         }
 
 
@@ -570,14 +624,69 @@ def handle_delete_event(state: AgentState) -> AgentState:
 
 
 def handle_query_event(state: AgentState) -> AgentState:
-    """处理查询日程"""
+    """处理查询日程（支持向量语义搜索）"""
     logger.debug("Handling query event...")
     
     db = state["db"]
     user_id = state["user_id"]
+    message = state["message"]
     
-    # 获取用户的日程列表
-    events = db.query(Event).filter(Event.user_id == user_id).order_by(Event.start_time).all()
+    # 尝试使用向量搜索（仅 PostgreSQL）
+    events = []
+    used_vector_search = False
+    
+    try:
+        from services.embedding_service import is_postgres, generate_embedding
+        from sqlalchemy import text
+        
+        if is_postgres():
+            # 生成查询的 embedding
+            query_embedding = generate_embedding(message)
+            
+            if query_embedding:
+                # 向量相似度搜索
+                embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
+                
+                result = db.execute(text("""
+                    SELECT 
+                        id, title, start_time, end_time, location, description,
+                        source_type, source_thumbnail, is_followed, created_at,
+                        1 - (embedding <=> :embedding::vector) as similarity
+                    FROM events
+                    WHERE user_id = :user_id
+                        AND embedding IS NOT NULL
+                    ORDER BY embedding <=> :embedding::vector
+                    LIMIT 20
+                """), {
+                    "embedding": embedding_str,
+                    "user_id": user_id,
+                })
+                
+                rows = result.fetchall()
+                for row in rows:
+                    events.append(Event(
+                        id=row.id,
+                        title=row.title,
+                        start_time=row.start_time,
+                        end_time=row.end_time,
+                        location=row.location,
+                        description=row.description,
+                        source_type=row.source_type,
+                        source_thumbnail=row.source_thumbnail,
+                        is_followed=row.is_followed,
+                        created_at=row.created_at,
+                        user_id=user_id,
+                    ))
+                
+                if events:
+                    used_vector_search = True
+                    logger.info(f"Vector search found {len(events)} events")
+    except Exception as e:
+        logger.warning(f"Vector search failed, falling back to normal query: {e}")
+    
+    # 如果向量搜索没有结果，使用普通查询
+    if not events:
+        events = db.query(Event).filter(Event.user_id == user_id).order_by(Event.start_time).all()
     
     if not events:
         return {
@@ -604,13 +713,14 @@ def handle_query_event(state: AgentState) -> AgentState:
     
     prompt = EVENT_QUERY_PROMPT.format_messages(
         current_time=current_time,
-        message=state["message"],
+        message=message,
         events_list=events_list,
     )
     
     response = llm.invoke(prompt)
     
-    logger.info(f"Query event completed: found {len(events)} events")
+    search_method = "vector" if used_vector_search else "normal"
+    logger.info(f"Query event completed: found {len(events)} events (search={search_method})")
     
     return {
         **state,
@@ -618,6 +728,7 @@ def handle_query_event(state: AgentState) -> AgentState:
         "action_result": {
             "action": "query_event",
             "events_count": len(events),
+            "search_method": search_method,
             "events": [
                 {
                     "id": e.id,
@@ -633,12 +744,22 @@ def handle_query_event(state: AgentState) -> AgentState:
 
 
 def handle_reject(state: AgentState) -> AgentState:
-    """处理无法处理的请求"""
-    logger.debug("Handling reject...")
+    """处理不确定的请求 - 友好询问用户"""
+    logger.debug("Handling unclear request with friendly response...")
+    
+    message = state.get("message", "")
+    has_image = state.get("image_base64") or state.get("images_base64")
+    
+    if has_image:
+        # 有图片时，询问用户想要做什么
+        response = "我看到您上传了图片！请问您希望我如何处理呢？\n\n我可以帮您：\n📅 从图片中提取活动信息并创建日程\n🔍 了解图片中的内容\n\n请告诉我您的需求~"
+    else:
+        # 没有图片，友好地询问更多信息
+        response = f"您好！我注意到您的消息是：「{message[:50]}{'...' if len(message) > 50 else ''}」\n\n请问您是想要：\n📅 创建新日程\n🔍 查看我的日程\n✏️ 修改某个日程\n\n可以告诉我更多细节吗？"
     
     return {
         **state,
-        "response": "抱歉，这个请求超出了我的能力范围。我是一个日程助手，可以帮您创建、查询、修改和删除日程，也可以和您闲聊。如果有日程相关的需求，请告诉我！",
+        "response": response,
         "action_result": None,
     }
 
@@ -886,7 +1007,7 @@ async def run_agent_stream(
                 "query_event": "正在查询日程...",
                 "update_event": "正在修改日程...",
                 "delete_event": "正在删除日程...",
-                "reject": "正在处理...",
+                "reject": "正在理解您的需求...",
             }
             yield {"type": "thinking", "message": thinking_messages.get(intent, "正在处理...")}
             

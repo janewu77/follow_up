@@ -465,6 +465,10 @@
                                 console.log('SSE event:', data);
                                 
                                 switch (data.type) {
+                                    case 'thinking':
+                                        // 显示思考中状态
+                                        updateStatus(`💭 ${data.message}`);
+                                        break;
                                     case 'status':
                                         updateStatus(data.message);
                                         break;
@@ -614,8 +618,8 @@
                 bgColor = 'bg-red-50';
                 textColor = 'text-red-900';
             } else if (role === 'system') {
-                bgColor = 'bg-yellow-50';
-                textColor = 'text-yellow-900';
+                bgColor = 'bg-gray-100';
+                textColor = 'text-gray-700';
             }
 
             // 使用 SVG 图标而不是 emoji
@@ -628,12 +632,35 @@
                 </div>
             ` : '';
             
-            messageDiv.innerHTML = `
-                <div class="max-w-[80%] ${bgColor} ${textColor} rounded-lg px-4 py-2 shadow-sm">
-                    ${imageIcon}
-                    <div class="message-content whitespace-pre-wrap">${escapeHtml(content)}</div>
-                </div>
-            `;
+            // 如果是 system 消息（操作结果），使用可折叠的样式
+            if (role === 'system') {
+                const uniqueId = 'collapse-' + Date.now();
+                messageDiv.innerHTML = `
+                    <div class="max-w-[80%] ${bgColor} ${textColor} rounded-lg shadow-sm text-sm border border-gray-200">
+                        <button onclick="toggleCollapse('${uniqueId}')" class="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-200 rounded-lg transition-colors">
+                            <span class="flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <span>接口返回</span>
+                            </span>
+                            <svg id="${uniqueId}-icon" class="w-4 h-4 transform rotate-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="${uniqueId}" class="hidden px-3 py-2 border-t border-gray-200">
+                            <pre class="message-content whitespace-pre-wrap text-xs font-mono overflow-x-auto">${escapeHtml(content)}</pre>
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="max-w-[80%] ${bgColor} ${textColor} rounded-lg px-4 py-2 shadow-sm">
+                        ${imageIcon}
+                        <div class="message-content whitespace-pre-wrap">${escapeHtml(content)}</div>
+                    </div>
+                `;
+            }
 
             messagesDiv.appendChild(messageDiv);
             messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -646,6 +673,21 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // 折叠/展开操作结果
+        function toggleCollapse(id) {
+            const content = document.getElementById(id);
+            const icon = document.getElementById(id + '-icon');
+            if (content && icon) {
+                if (content.classList.contains('hidden')) {
+                    content.classList.remove('hidden');
+                    icon.classList.add('rotate-180');
+                } else {
+                    content.classList.add('hidden');
+                    icon.classList.remove('rotate-180');
+                }
+            }
         }
 
         // 更新状态

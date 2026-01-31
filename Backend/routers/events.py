@@ -167,6 +167,8 @@ async def create_event(
 
     需要认证：Authorization: Bearer <token>
     """
+    from services.embedding_service import generate_event_embedding, is_postgres
+    
     event = Event(
         user_id=current_user.id,
         title=request.title,
@@ -182,6 +184,27 @@ async def create_event(
     db.add(event)
     db.commit()
     db.refresh(event)
+    
+    # 生成 embedding（仅 PostgreSQL）
+    if is_postgres():
+        try:
+            embedding = generate_event_embedding(
+                title=request.title,
+                description=request.description,
+                location=request.location,
+            )
+            if embedding:
+                from sqlalchemy import text
+                embedding_str = "[" + ",".join(map(str, embedding)) + "]"
+                db.execute(text("""
+                    UPDATE events 
+                    SET embedding = :embedding::vector 
+                    WHERE id = :event_id
+                """), {"embedding": embedding_str, "event_id": event.id})
+                db.commit()
+                logger.debug(f"Generated embedding for event {event.id}")
+        except Exception as e:
+            logger.warning(f"Failed to generate embedding for event {event.id}: {e}")
 
     return event_to_response(event)
 
@@ -238,22 +261,52 @@ async def update_event_endpoint(
             detail="Event not found",
         )
 
+    # 记录是否有内容字段变更（需要重新生成 embedding）
+    content_changed = False
+    
     # 更新字段
     if request.title is not None:
         event.title = request.title
+        content_changed = True
     if request.start_time is not None:
         event.start_time = request.start_time
     if request.end_time is not None:
         event.end_time = request.end_time
     if request.location is not None:
         event.location = request.location
+        content_changed = True
     if request.description is not None:
         event.description = request.description
+        content_changed = True
     if request.is_followed is not None:
         event.is_followed = request.is_followed
 
     db.commit()
     db.refresh(event)
+    
+    # 如果内容字段变更，重新生成 embedding（仅 PostgreSQL）
+    if content_changed:
+        from services.embedding_service import generate_event_embedding, is_postgres
+        
+        if is_postgres():
+            try:
+                embedding = generate_event_embedding(
+                    title=event.title,
+                    description=event.description,
+                    location=event.location,
+                )
+                if embedding:
+                    from sqlalchemy import text
+                    embedding_str = "[" + ",".join(map(str, embedding)) + "]"
+                    db.execute(text("""
+                        UPDATE events 
+                        SET embedding = :embedding::vector 
+                        WHERE id = :event_id
+                    """), {"embedding": embedding_str, "event_id": event.id})
+                    db.commit()
+                    logger.debug(f"Updated embedding for event {event.id}")
+            except Exception as e:
+                logger.warning(f"Failed to update embedding for event {event.id}: {e}")
 
     return event_to_response(event)
 
