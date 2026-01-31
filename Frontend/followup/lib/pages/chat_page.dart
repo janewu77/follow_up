@@ -238,28 +238,11 @@ class _ChatPageState extends State<ChatPage> {
       ),
       child: Row(
         children: [
-          // Logo
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.accent],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.calendar_today_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'FollowUP',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
+          // Logo image - transparent background
+          Image.asset(
+            'assets/images/logo_transparent.png',
+            height: 36,
+            fit: BoxFit.contain,
           ),
           const Spacer(),
           // Quick actions

@@ -161,25 +161,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // App Title
-          const Text(
-            'FollowUP',
-            style: TextStyle(
-              fontSize: 42,
-              fontWeight: FontWeight.w700,
-              color: FollowUpColors.titleColor,
-              letterSpacing: -1,
-            ),
-          ),
+          // App Title - Styled to match logo
+          const _FollowUpLogo(),
           const SizedBox(height: 8),
-          // Tagline
+          // Tagline - Matching logo text
           Text(
-            'Stop remembering. Start living.',
+            'Your smart path from input to action.',
             style: TextStyle(
-              fontSize: 18,
-              fontStyle: FontStyle.italic,
-              color: FollowUpColors.titleColor.withValues(alpha: 0.8),
-              letterSpacing: 0.5,
+              fontSize: 16,
+              color: FollowUpColors.taglineColor,
+              letterSpacing: 0.3,
             ),
           ),
           const SizedBox(height: 48),
@@ -469,9 +460,102 @@ class FollowUpColors {
   static const Color cream = Color(0xFFFDF5ED);
   static const Color warmBeige = Color(0xFFF5E6D8);
 
+  // Logo colors - matching the brand logo
+  static const Color logoDarkTeal = Color(0xFF2F4858); // "Follow" text
+  static const Color logoTurquoise = Color(0xFF5ABFB3); // "UP" text with arrow
+  static const Color taglineColor = Color(0xFF5A6B6B); // Tagline gray
+
   // Text colors
   static const Color titleColor = Color(0xFF3D5A4C);
   static const Color textColor = Color(0xFF4A5D52);
+}
+
+/// FollowUP Logo Widget - Styled to match the brand logo
+/// "Follow" in dark teal, "UP" in turquoise with animated arrow effect
+class _FollowUpLogo extends StatefulWidget {
+  const _FollowUpLogo();
+
+  @override
+  State<_FollowUpLogo> createState() => _FollowUpLogoState();
+}
+
+class _FollowUpLogoState extends State<_FollowUpLogo>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _floatAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    // Subtle floating/bounce animation for "UP"
+    _floatAnimation = Tween<double>(begin: 0, end: -4).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // "Follow" text - static
+        const Text(
+          'Follow',
+          style: TextStyle(
+            fontSize: 42,
+            fontWeight: FontWeight.w700,
+            color: FollowUpColors.logoDarkTeal,
+            letterSpacing: -0.5,
+            height: 1.0,
+          ),
+        ),
+        // "UP" with gentle bounce animation
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(0, _floatAnimation.value),
+              child: ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    FollowUpColors.logoTurquoise,
+                    Color(0xFF7CD4C8), // Lighter shade at top
+                  ],
+                ).createShader(bounds),
+                child: const Text(
+                  'UP',
+                  style: TextStyle(
+                    fontSize: 42,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                    height: 1.0,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
 }
 
 /// Organic flowing background shapes
