@@ -1,7 +1,7 @@
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+# 使用默认 builder (Nixpacks)，自动检测 Python
 
 [deploy]
+startCommand = "uvicorn main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
