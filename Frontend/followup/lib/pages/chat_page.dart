@@ -414,12 +414,6 @@ class _ChatPageState extends State<ChatPage> {
           // Quick actions
           if (isWide) ...[
             _QuickActionButton(
-              icon: Icons.add_photo_alternate_outlined,
-              label: l10n.chatUploadImage,
-              onTap: () => Navigator.pushNamed(context, '/input', arguments: {'mode': 'image'}),
-            ),
-            const SizedBox(width: 8),
-            _QuickActionButton(
               icon: Icons.event_outlined,
               label: l10n.chatViewEvents,
               onTap: () => Navigator.pushNamed(context, '/events'),
