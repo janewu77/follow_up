@@ -31,8 +31,83 @@
 
   <title>followup</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Loading screen styles -->
+  <style>
+    .loading-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #FDF5ED 0%, #F5E6D8 50%, #F8EEE4 100%);
+      z-index: 9999;
+    }
+
+    .loading-title {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 42px;
+      font-weight: 700;
+      color: #3D5A4C;
+      letter-spacing: -1px;
+      margin-bottom: 8px;
+    }
+
+    .loading-subtitle {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 18px;
+      font-style: italic;
+      color: rgba(61, 90, 76, 0.8);
+      margin-bottom: 40px;
+    }
+
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(90, 122, 107, 0.2);
+      border-top-color: #5A7A6B;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: rgba(61, 90, 76, 0.6);
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
+  <!-- Loading screen shown while Flutter loads -->
+  <div id="loading" class="loading-container">
+    <div class="loading-title">FollowUP</div>
+    <div class="loading-subtitle">Stop remembering. Start living.</div>
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading...</div>
+  </div>
+
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Remove loading screen when Flutter is ready
+    window.addEventListener('flutter-first-frame', function() {
+      const loading = document.getElementById('loading');
+      if (loading) {
+        loading.style.opacity = '0';
+        loading.style.transition = 'opacity 0.3s ease-out';
+        setTimeout(function() {
+          loading.remove();
+        }, 300);
+      }
+    });
+  </script>
 </body>
 </html>

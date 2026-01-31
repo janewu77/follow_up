@@ -211,7 +211,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         const SizedBox(height: 8),
         // Copyright
         Text(
-          '© 2024 FollowUP. All rights reserved.',
+          '© 2026 FollowUP. All rights reserved.',
           style: TextStyle(
             fontSize: 12,
             color: FollowUpColors.titleColor.withValues(alpha: 0.4),
