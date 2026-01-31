@@ -4,6 +4,7 @@ FollowUP 是一款基于 Flutter 开发的跨平台日程管理应用，通过 A
 
 ## 功能特性
 
+- **AI 聊天助手** - 通过自然语言对话，智能识别并创建活动日程，支持实时流式响应
 - **图片识别** - 拍摄或上传活动海报、传单，AI 自动提取活动信息
 - **文字解析** - 粘贴活动描述文字，智能识别日期、地点、标题等关键信息
 - **日历同步** - 一键导出 ICS 文件，同步到 Apple Calendar、Google Calendar 等日历应用
@@ -16,9 +17,13 @@ FollowUP 是一款基于 Flutter 开发的跨平台日程管理应用，通过 A
 - **框架**: Flutter 3.10+
 - **状态管理**: Provider
 - **网络请求**: http
+- **实时通信**: SSE (Server-Sent Events) 流式响应
 - **本地存储**: shared_preferences
 - **图片处理**: image_picker
+- **文件操作**: path_provider
+- **Web 支持**: universal_html
 - **日期格式化**: intl
+- **应用信息**: package_info_plus
 - **国际化**: flutter_localizations + ARB files
 
 ## 项目结构
@@ -42,6 +47,7 @@ lib/
 │   ├── landing_page.dart  # 产品介绍首页 (Hero背景图)
 │   ├── login_page.dart    # 登录页面
 │   ├── home_page.dart     # 主页 (登录后)
+│   ├── chat_page.dart     # AI 聊天页面 (主要交互入口)
 │   ├── input_page.dart    # 输入页面（文字/图片识别）
 │   ├── preview_page.dart  # 预览确认页面
 │   └── events_page.dart   # 活动列表页面
@@ -51,6 +57,7 @@ lib/
 ├── services/              # 服务层
 │   ├── api_service.dart   # API 请求封装
 │   ├── auth_service.dart  # 认证服务
+│   ├── chat_service.dart  # 聊天服务 (SSE 流式通信)
 │   └── mock_service.dart  # Mock 数据服务
 ├── theme/                 # 主题配置
 │   └── app_theme.dart     # 应用主题 (颜色、背景、样式)
@@ -67,16 +74,21 @@ lib/
 assets/
 └── images/
     ├── logo.png           # 应用 Logo
+    ├── logo_transparent.png # 透明背景 Logo
     └── main_picture.png   # Hero 背景图片
 ```
 
 ## 环境要求
 
 - Flutter SDK >= 3.10.4
-- Dart SDK >= 3.0.0
+- Dart SDK >= 3.10.4
 - iOS: Xcode 14.0+
 - Android: Android Studio / Gradle 8.0+
 - Web: Chrome 浏览器
+
+## 当前版本
+
+- **Version**: 1.0.12+1
 
 ## 快速开始
 
@@ -209,6 +221,7 @@ flutter build appbundle --release
 | 接口 | 方法 | 描述 |
 |------|------|------|
 | `/api/auth/login` | POST | 用户登录 |
+| `/api/chat` | POST | AI 聊天接口 (SSE 流式响应) |
 | `/api/parse` | POST | 解析活动信息（文字/图片） |
 | `/api/events` | GET | 获取活动列表 |
 | `/api/events` | POST | 创建活动 |
@@ -220,21 +233,23 @@ flutter build appbundle --release
 
 | 路由 | 页面 | 描述 |
 |------|------|------|
-| `/` | LandingPage | 产品介绍首页 |
+| `/` | LoginPage | 登录页面（入口） |
 | `/login` | LoginPage | 登录页面 |
 | `/home` | HomePage | 主页（需登录） |
+| `/chat` | ChatPage | AI 聊天页面 |
 | `/input` | InputPage | 输入页面 |
 | `/preview` | PreviewPage | 预览确认页面 |
 | `/events` | EventsPage | 活动列表页面 |
 
 ## 使用流程
 
-1. **首页浏览** - 用户访问产品介绍页面，了解产品功能
+1. **启动画面** - iOS/Android 原生启动屏显示品牌 Logo
 2. **登录注册** - 用户登录账号（支持测试账号：test/test123）
-3. **添加活动** - 选择文字或图片方式输入活动信息
-4. **AI 识别** - 系统自动识别并提取活动详情
+3. **AI 聊天** - 与 AI 助手对话，描述想要创建的活动或上传图片
+4. **智能识别** - AI 实时分析意图，自动提取活动详情（支持 SSE 流式响应）
 5. **预览确认** - 用户查看并编辑识别结果
 6. **保存同步** - 保存活动并可导出 ICS 文件到日历
+7. **活动管理** - 在活动列表中查看、关注或删除活动
 
 ## 国际化 (i18n)
 

@@ -51,7 +51,7 @@ class FollowUpApp extends StatelessWidget {
           // Route generator for passing arguments
           switch (settings.name) {
             case '/':
-              // Start with login page (LandingPage hidden for now)
+              // Start with login page
               return MaterialPageRoute(
                 builder: (_) => const LoginPage(),
               );

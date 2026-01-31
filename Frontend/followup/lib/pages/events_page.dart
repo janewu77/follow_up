@@ -148,12 +148,6 @@ class _EventsPageState extends State<EventsPage>
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.pushNamed(context, '/input'),
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add),
-        label: Text(l10n.addEvent),
-      ),
     );
   }
 }

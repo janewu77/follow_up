@@ -32,8 +32,14 @@
   <title>followup</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Loading screen styles -->
+  <!-- Loading screen styles - matching Flutter SplashPage -->
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     .loading-container {
       position: fixed;
       top: 0;
@@ -46,53 +52,175 @@
       align-items: center;
       background: linear-gradient(135deg, #FDF5ED 0%, #F5E6D8 50%, #F8EEE4 100%);
       z-index: 9999;
+      overflow: hidden;
     }
 
-    .loading-title {
+    /* Organic background shapes */
+    .bg-shape {
+      position: absolute;
+      border-radius: 50% 40% 60% 50%;
+      filter: blur(40px);
+      animation: float 8s ease-in-out infinite;
+    }
+
+    .shape-1 {
+      top: -80px;
+      right: -120px;
+      width: 50vw;
+      height: 30vh;
+      background: rgba(90, 122, 107, 0.3);
+      animation-delay: 0s;
+    }
+
+    .shape-2 {
+      top: 20%;
+      left: -25%;
+      width: 45vw;
+      height: 35vh;
+      background: rgba(170, 212, 204, 0.4);
+      animation-delay: -2s;
+    }
+
+    .shape-3 {
+      bottom: -10%;
+      right: -20%;
+      width: 60vw;
+      height: 40vh;
+      background: rgba(232, 200, 184, 0.5);
+      animation-delay: -4s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      50% { transform: translate(20px, -20px) rotate(5deg); }
+    }
+
+    /* Logo container */
+    .logo-container {
+      display: flex;
+      align-items: flex-end;
+      margin-bottom: 16px;
+      z-index: 1;
+    }
+
+    .logo-follow {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 42px;
+      font-size: 48px;
       font-weight: 700;
-      color: #3D5A4C;
-      letter-spacing: -1px;
-      margin-bottom: 8px;
+      color: #2F4858;
+      letter-spacing: -0.5px;
+      line-height: 1;
     }
 
-    .loading-subtitle {
+    .logo-up {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 18px;
-      font-style: italic;
-      color: rgba(61, 90, 76, 0.8);
-      margin-bottom: 40px;
+      font-size: 48px;
+      font-weight: 700;
+      background: linear-gradient(to top, #5ABFB3, #7CD4C8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+      line-height: 1;
+      animation: bounce 1.5s ease-in-out infinite;
     }
 
-    .loading-spinner {
-      width: 48px;
-      height: 48px;
-      border: 4px solid rgba(90, 122, 107, 0.2);
-      border-top-color: #5A7A6B;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .tagline {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 16px;
+      color: rgba(90, 107, 107, 0.8);
+      letter-spacing: 0.3px;
+      margin-bottom: 60px;
+      z-index: 1;
+    }
+
+    /* Loading indicator */
+    .loading-bar-container {
+      width: 120px;
+      height: 4px;
+      background: rgba(90, 122, 107, 0.2);
+      border-radius: 4px;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .loading-bar {
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(90deg, #5A7A6B, #7CD4C8);
+      border-radius: 4px;
+      animation: loading 1.2s ease-in-out infinite;
+    }
+
+    @keyframes loading {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
     }
 
     .loading-text {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
-      color: rgba(61, 90, 76, 0.6);
-      margin-top: 20px;
+      color: rgba(74, 93, 82, 0.6);
+      letter-spacing: 0.5px;
+      margin-top: 16px;
+      z-index: 1;
+    }
+
+    /* Footer */
+    .footer {
+      position: absolute;
+      bottom: 32px;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .footer-text {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 12px;
+      color: rgba(61, 90, 76, 0.4);
+    }
+
+    .footer-sub {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px;
+      color: rgba(61, 90, 76, 0.3);
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
-  <!-- Loading screen shown while Flutter loads -->
+  <!-- Loading screen shown while Flutter loads - matching SplashPage -->
   <div id="loading" class="loading-container">
-    <div class="loading-title">FollowUP</div>
-    <div class="loading-subtitle">Stop remembering. Start living.</div>
-    <div class="loading-spinner"></div>
+    <!-- Organic background shapes -->
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+    <div class="bg-shape shape-3"></div>
+
+    <!-- Logo -->
+    <div class="logo-container">
+      <span class="logo-follow">Follow</span>
+      <span class="logo-up">UP</span>
+    </div>
+
+    <!-- Tagline -->
+    <div class="tagline">Your smart path from input to action.</div>
+
+    <!-- Loading indicator -->
+    <div class="loading-bar-container">
+      <div class="loading-bar"></div>
+    </div>
     <div class="loading-text">Loading...</div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-text">© 2026 FollowUP</div>
+      <div class="footer-sub">Made with AI</div>
+    </div>
   </div>
 
   <script src="flutter_bootstrap.js" async></script>
