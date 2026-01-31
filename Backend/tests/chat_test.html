@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat API 测试页面</title>
+    <!-- 注意：这是测试页面，使用 Tailwind CDN 仅用于快速开发测试 -->
+    <!-- 生产环境应使用 PostCSS 插件或 Tailwind CLI -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 简单的 favicon，避免 404 错误 -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
     <style>
         /* 自定义滚动条 */
         .custom-scrollbar::-webkit-scrollbar {
@@ -68,10 +72,16 @@
                         <span class="ml-2 text-sm text-slate-700">流式响应 (SSE)</span>
                     </label>
                     <button 
-                        onclick="clearChat()" 
+                        id="clearChatBtn"
                         class="px-3 py-1 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors duration-200 cursor-pointer"
                     >
                         清除对话
+                    </button>
+                    <button 
+                        id="testConnectionBtn"
+                        class="px-3 py-1 text-sm text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors duration-200 cursor-pointer"
+                    >
+                        测试连接
                     </button>
                 </div>
             </div>
@@ -98,10 +108,9 @@
                             multiple 
                             accept="image/*" 
                             class="hidden"
-                            onchange="handleFileSelect(event)"
                         />
                         <button 
-                            onclick="document.getElementById('fileInput').click()" 
+                            id="selectFileBtn"
                             class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-sm font-medium transition-colors duration-200 cursor-pointer"
                         >
                             选择图片
@@ -117,10 +126,8 @@
                         placeholder="输入消息..." 
                         rows="2"
                         class="flex-1 px-4 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        onkeydown="handleKeyDown(event)"
                     ></textarea>
                     <button 
-                        onclick="sendMessage()" 
                         id="sendBtn"
                         class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -138,10 +145,72 @@
         let sessionId = null;
         let selectedFiles = [];
 
+        // 绑定事件处理器
+        function initEventListeners() {
+            // 绑定文件选择事件
+            document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+            
+            // 绑定选择文件按钮
+            document.getElementById('selectFileBtn').addEventListener('click', function() {
+                document.getElementById('fileInput').click();
+            });
+            
+            // 绑定发送按钮
+            document.getElementById('sendBtn').addEventListener('click', sendMessage);
+            
+            // 绑定测试连接按钮
+            document.getElementById('testConnectionBtn').addEventListener('click', testConnection);
+            
+            // 绑定清除对话按钮
+            document.getElementById('clearChatBtn').addEventListener('click', clearChat);
+            
+            // 绑定键盘事件 - 回车发送消息
+            document.getElementById('messageInput').addEventListener('keydown', handleKeyDown);
+            
+            console.log('Event listeners initialized');
+        }
+
+        // 页面加载完成后绑定事件处理器
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initEventListeners);
+        } else {
+            // DOM 已经加载完成，直接初始化
+            initEventListeners();
+        }
+
         // 处理文件选择
         function handleFileSelect(event) {
             const files = Array.from(event.target.files);
-            selectedFiles = files;
+            
+            // 过滤掉空文件和无效文件
+            const validFiles = files.filter(file => {
+                if (!file || !file.name) {
+                    console.warn('跳过无效文件');
+                    return false;
+                }
+                if (file.size === 0) {
+                    console.warn(`跳过空文件: ${file.name}`);
+                    return false;
+                }
+                if (!file.type.startsWith('image/')) {
+                    console.warn(`跳过非图片文件: ${file.name} (${file.type})`);
+                    return false;
+                }
+                return true;
+            });
+            
+            if (validFiles.length < files.length) {
+                const skippedCount = files.length - validFiles.length;
+                alert(`已跳过 ${skippedCount} 个无效文件（空文件或非图片格式）`);
+            }
+            
+            if (validFiles.length === 0) {
+                // 如果没有有效文件，清空 input
+                event.target.value = '';
+                return;
+            }
+            
+            selectedFiles = validFiles;
             updateFileList();
         }
 
@@ -156,10 +225,14 @@
                 fileItem.innerHTML = `
                     <span>${file.name}</span>
                     <button 
-                        onclick="removeFile(${index})" 
-                        class="text-blue-600 hover:text-blue-800 cursor-pointer"
+                        class="remove-file-btn text-blue-600 hover:text-blue-800 cursor-pointer"
+                        data-index="${index}"
                     >×</button>
                 `;
+                // 绑定删除按钮事件
+                fileItem.querySelector('.remove-file-btn').addEventListener('click', function() {
+                    removeFile(parseInt(this.getAttribute('data-index')));
+                });
                 fileList.appendChild(fileItem);
             });
         }
@@ -191,8 +264,19 @@
             const token = document.getElementById('token').value.trim();
             const streamMode = document.getElementById('streamMode').checked;
 
-            if (!message.trim() && selectedFiles.length === 0) {
+            // 验证：必须有消息或文件
+            if (!message && selectedFiles.length === 0) {
                 alert('请输入消息或选择图片');
+                return;
+            }
+
+            // 验证：API 地址和 Token 不能为空
+            if (!apiUrl) {
+                alert('请输入 API 地址');
+                return;
+            }
+            if (!token) {
+                alert('请输入 Token');
                 return;
             }
 
@@ -205,8 +289,33 @@
             const filesToProcess = [...selectedFiles];
             const hasFiles = filesToProcess.length > 0;
 
+            // 验证文件是否有效
+            if (hasFiles) {
+                for (const file of filesToProcess) {
+                    if (!file || !file.name) {
+                        alert('检测到无效的文件，请重新选择');
+                        sendBtn.disabled = false;
+                        sendBtn.textContent = '发送';
+                        return;
+                    }
+                    if (file.size === 0) {
+                        alert(`文件 "${file.name}" 为空，请选择有效的图片文件`);
+                        sendBtn.disabled = false;
+                        sendBtn.textContent = '发送';
+                        return;
+                    }
+                    // 检查文件类型
+                    if (!file.type.startsWith('image/')) {
+                        alert(`文件 "${file.name}" 不是图片格式，请选择图片文件`);
+                        sendBtn.disabled = false;
+                        sendBtn.textContent = '发送';
+                        return;
+                    }
+                }
+            }
+
             // 添加用户消息
-            addMessage('user', message, hasFiles ? `${filesToProcess.length} 张图片` : null);
+            addMessage('user', message || (hasFiles ? `上传了 ${filesToProcess.length} 张图片` : ''), hasFiles ? `${filesToProcess.length} 张图片` : null);
 
             // 清空输入
             messageInput.value = '';
@@ -218,13 +327,30 @@
                 // 转换图片为 base64
                 const imagesBase64 = [];
                 for (const file of filesToProcess) {
-                    const base64 = await fileToBase64(file);
-                    imagesBase64.push(base64);
+                    try {
+                        const base64 = await fileToBase64(file);
+                        if (base64 && base64.length > 0) {
+                            imagesBase64.push(base64);
+                        } else {
+                            console.warn(`文件 ${file.name} 转换失败（base64 为空）`);
+                        }
+                    } catch (error) {
+                        console.error(`文件 ${file.name} 转换错误:`, error);
+                        addMessage('error', `文件 "${file.name}" 处理失败: ${error.message}`);
+                    }
+                }
+
+                // 如果没有成功转换任何图片，且没有消息，则报错
+                if (imagesBase64.length === 0 && !message) {
+                    addMessage('error', '没有有效的图片或消息');
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = '发送';
+                    return;
                 }
 
                 // 构建请求体
                 const requestBody = {
-                    message: message || '请分析这些图片',
+                    message: message || (imagesBase64.length > 0 ? '请分析这些图片' : ''),
                     session_id: sessionId,
                 };
 
@@ -244,8 +370,9 @@
                     await sendNormalRequest(apiUrl, token, requestBody);
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Send message error:', error);
                 addMessage('error', `错误: ${error.message}`);
+                updateStatus(`错误: ${error.message}`);
             } finally {
                 sendBtn.disabled = false;
                 sendBtn.textContent = '发送';
@@ -268,86 +395,153 @@
 
         // 发送流式请求
         async function sendStreamRequest(apiUrl, token, requestBody) {
-            const response = await fetch(`${apiUrl}/api/chat?stream=true`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestBody),
-            });
+            const url = `${apiUrl}/api/chat?stream=true`;
+            console.log('Sending stream request to:', url);
+            console.log('Request body:', JSON.stringify(requestBody, null, 2));
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody),
+                });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-            }
+                console.log('Response status:', response.status, response.statusText);
+                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            let fullResponse = '';
-            let intent = '';
-            let messageElement = null;
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Response error:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+                if (!response.body) {
+                    throw new Error('Response body is null');
+                }
 
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop(); // 保留最后一个不完整的行
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullResponse = '';
+                let intent = '';
+                let messageElement = null;
 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(line.substring(6));
-                            
-                            switch (data.type) {
-                                case 'status':
-                                    updateStatus(data.message);
-                                    break;
-                                case 'intent':
-                                    intent = data.intent;
-                                    updateStatus(`意图: ${intent}`);
-                                    if (!messageElement) {
-                                        messageElement = addMessage('assistant', '', null, true);
-                                    }
-                                    break;
-                                case 'token':
-                                    fullResponse += data.token;
-                                    if (messageElement) {
+                console.log('Starting to read stream...');
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) {
+                        console.log('Stream finished, remaining buffer:', buffer);
+                        // 处理剩余缓冲区
+                        if (buffer.trim()) {
+                            if (buffer.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(buffer.substring(6));
+                                    console.log('Final buffer data:', data);
+                                    processSSEData(data);
+                                } catch (e) {
+                                    console.error('Final parse error:', e, buffer);
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    console.log('Received chunk:', chunk.substring(0, 100));
+                    buffer += chunk;
+                    
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // 保留最后一个不完整的行
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.substring(6));
+                                console.log('SSE event:', data);
+                                
+                                switch (data.type) {
+                                    case 'status':
+                                        updateStatus(data.message);
+                                        break;
+                                    case 'intent':
+                                        intent = data.intent;
+                                        updateStatus(`意图: ${intent}`);
+                                        if (!messageElement) {
+                                            messageElement = addMessage('assistant', '', null, true);
+                                        }
+                                        break;
+                                    case 'token':
+                                        // 如果还没有创建消息元素，先创建
+                                        if (!messageElement) {
+                                            messageElement = addMessage('assistant', '', null, true);
+                                        }
+                                        fullResponse += data.token;
                                         messageElement.querySelector('.message-content').textContent = fullResponse;
                                         messageElement.querySelector('.message-content').classList.add('typing-cursor');
-                                    }
-                                    break;
-                                case 'action':
-                                    if (data.action_result) {
-                                        addMessage('system', `操作结果: ${JSON.stringify(data.action_result, null, 2)}`);
-                                    }
-                                    break;
-                                case 'done':
-                                    if (messageElement) {
-                                        messageElement.querySelector('.message-content').classList.remove('typing-cursor');
-                                    }
-                                    if (data.session_id) {
-                                        sessionId = data.session_id;
-                                    }
-                                    updateStatus('完成');
-                                    break;
-                                case 'error':
-                                    addMessage('error', `错误: ${data.error}`);
-                                    updateStatus('错误');
-                                    break;
+                                        break;
+                                    case 'content':
+                                        // 一次性返回完整内容
+                                        if (!messageElement) {
+                                            messageElement = addMessage('assistant', data.content || data.message || '', null, false);
+                                        } else {
+                                            messageElement.querySelector('.message-content').textContent = data.content || data.message || '';
+                                        }
+                                        break;
+                                    case 'action':
+                                        if (data.action_result) {
+                                            addMessage('system', `操作结果: ${JSON.stringify(data.action_result, null, 2)}`);
+                                        }
+                                        break;
+                                    case 'done':
+                                        // 如果有 message 字段，显示它
+                                        if (data.message && !fullResponse) {
+                                            if (!messageElement) {
+                                                messageElement = addMessage('assistant', data.message, null, false);
+                                            } else {
+                                                messageElement.querySelector('.message-content').textContent = data.message;
+                                            }
+                                        }
+                                        if (messageElement) {
+                                            messageElement.querySelector('.message-content').classList.remove('typing-cursor');
+                                        }
+                                        if (data.session_id) {
+                                            sessionId = data.session_id;
+                                        }
+                                        updateStatus('完成');
+                                        break;
+                                    case 'error':
+                                        addMessage('error', `错误: ${data.error}`);
+                                        updateStatus('错误');
+                                        break;
+                                    default:
+                                        // 处理未知类型，可能包含 message 字段
+                                        console.log('Unknown event type:', data.type, data);
+                                        if (data.message && !messageElement) {
+                                            messageElement = addMessage('assistant', data.message, null, false);
+                                        }
+                                        break;
+                                }
+                            } catch (e) {
+                                console.error('Parse error:', e, line);
                             }
-                        } catch (e) {
-                            console.error('Parse error:', e, line);
                         }
                     }
                 }
-            }
 
-            // 移除光标动画
-            if (messageElement) {
-                messageElement.querySelector('.message-content').classList.remove('typing-cursor');
+                // 移除光标动画
+                if (messageElement) {
+                    messageElement.querySelector('.message-content').classList.remove('typing-cursor');
+                }
+            } catch (error) {
+                console.error('Stream request error:', error);
+                updateStatus(`流式响应错误: ${error.message}`);
+                addMessage('error', `流式响应错误: ${error.message}`);
+                throw error;
             }
         }
 
@@ -355,33 +549,47 @@
         async function sendNormalRequest(apiUrl, token, requestBody) {
             updateStatus('发送中...');
 
-            const response = await fetch(`${apiUrl}/api/chat`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestBody),
-            });
+            const url = `${apiUrl}/api/chat`;
+            console.log('Sending request to:', url);
+            console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP ${response.status}: ${errorText}`);
-            }
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody),
+                });
 
-            const data = await response.json();
-            
-            addMessage('assistant', data.message, null);
-            if (data.intent) {
-                updateStatus(`意图: ${data.intent}`);
+                console.log('Response status:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Response error:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                
+                addMessage('assistant', data.message, null);
+                if (data.intent) {
+                    updateStatus(`意图: ${data.intent}`);
+                }
+                if (data.action_result) {
+                    addMessage('system', `操作结果: ${JSON.stringify(data.action_result, null, 2)}`);
+                }
+                if (data.session_id) {
+                    sessionId = data.session_id;
+                }
+                updateStatus('完成');
+            } catch (error) {
+                console.error('Normal request error:', error);
+                updateStatus(`请求错误: ${error.message}`);
+                addMessage('error', `请求错误: ${error.message}`);
+                throw error;
             }
-            if (data.action_result) {
-                addMessage('system', `操作结果: ${JSON.stringify(data.action_result, null, 2)}`);
-            }
-            if (data.session_id) {
-                sessionId = data.session_id;
-            }
-            updateStatus('完成');
         }
 
         // 添加消息
@@ -443,6 +651,56 @@
         // 更新状态
         function updateStatus(status) {
             document.getElementById('statusBar').textContent = status;
+        }
+
+        // 测试连接
+        async function testConnection() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const token = document.getElementById('token').value.trim();
+
+            if (!apiUrl) {
+                alert('请输入 API 地址');
+                return;
+            }
+            if (!token) {
+                alert('请输入 Token');
+                return;
+            }
+
+            updateStatus('测试连接中...');
+
+            try {
+                // 测试健康检查端点
+                const healthResponse = await fetch(`${apiUrl}/api/health`);
+                console.log('Health check:', healthResponse.status, healthResponse.statusText);
+                
+                if (!healthResponse.ok) {
+                    throw new Error(`健康检查失败: ${healthResponse.status}`);
+                }
+
+                // 测试用户信息端点
+                const userResponse = await fetch(`${apiUrl}/api/user/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+                console.log('User check:', userResponse.status, userResponse.statusText);
+
+                if (!userResponse.ok) {
+                    const errorText = await userResponse.text();
+                    throw new Error(`认证失败: ${userResponse.status} - ${errorText}`);
+                }
+
+                const userData = await userResponse.json();
+                console.log('User data:', userData);
+                
+                updateStatus('连接成功！');
+                alert(`连接成功！\n用户: ${userData.username || '未知'}\n健康检查: OK`);
+            } catch (error) {
+                console.error('Connection test error:', error);
+                updateStatus(`连接失败: ${error.message}`);
+                alert(`连接失败: ${error.message}`);
+            }
         }
 
         // 清除对话

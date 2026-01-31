@@ -238,5 +238,20 @@
 
   "footerCTATitle": "Ready to never forget an event again?",
   "footerCTASubtitle": "Start using FollowUP for free and let AI manage your schedule",
-  "footerDescription": "Transform life's moments into calendar events\nNever worry about forgetting again"
+  "footerDescription": "Transform life's moments into calendar events\nNever worry about forgetting again",
+
+  "chatWelcome": "Hi {username}! 👋 I'm your FollowUP assistant. Tell me about an event you'd like to add to your calendar, or paste any text containing event information.",
+  "@chatWelcome": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "chatStartHint": "Start a conversation to add events",
+  "chatInputHint": "Describe an event or paste text...",
+  "chatProcessing": "I found event information in your message! Would you like me to extract the details and add it to your calendar?",
+  "chatExtractEvent": "Extract Event",
+  "chatUploadImage": "Upload Image",
+  "chatViewEvents": "My Events"
 }

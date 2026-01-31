@@ -618,4 +618,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get footerDescription =>
       'Transform life\'s moments into calendar events\nNever worry about forgetting again';
+
+  @override
+  String chatWelcome(String username) {
+    return 'Hi $username! 👋 I\'m your FollowUP assistant. Tell me about an event you\'d like to add to your calendar, or paste any text containing event information.';
+  }
+
+  @override
+  String get chatStartHint => 'Start a conversation to add events';
+
+  @override
+  String get chatInputHint => 'Describe an event or paste text...';
+
+  @override
+  String get chatProcessing =>
+      'I found event information in your message! Would you like me to extract the details and add it to your calendar?';
+
+  @override
+  String get chatExtractEvent => 'Extract Event';
+
+  @override
+  String get chatUploadImage => 'Upload Image';
+
+  @override
+  String get chatViewEvents => 'My Events';
 }

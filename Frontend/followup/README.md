@@ -19,6 +19,7 @@ FollowUP 是一款基于 Flutter 开发的跨平台日程管理应用，通过 A
 - **本地存储**: shared_preferences
 - **图片处理**: image_picker
 - **日期格式化**: intl
+- **国际化**: flutter_localizations + ARB files
 
 ## 项目结构
 
@@ -26,13 +27,21 @@ FollowUP 是一款基于 Flutter 开发的跨平台日程管理应用，通过 A
 lib/
 ├── main.dart              # 应用入口
 ├── config.dart            # API 配置
+├── l10n/                  # 国际化
+│   ├── app_en.arb         # 英文翻译 (模板)
+│   ├── app_zh.arb         # 中文翻译
+│   ├── app_de.arb         # 德文翻译
+│   ├── app_localizations.dart      # 生成的本地化类
+│   ├── app_localizations_en.dart   # 英文本地化
+│   ├── app_localizations_zh.dart   # 中文本地化
+│   └── app_localizations_de.dart   # 德文本地化
 ├── models/                # 数据模型
 │   ├── event.dart         # 活动/日程模型
 │   └── user.dart          # 用户模型
 ├── pages/                 # 页面
-│   ├── landing_page.dart  # 产品介绍首页
+│   ├── landing_page.dart  # 产品介绍首页 (Hero背景图)
 │   ├── login_page.dart    # 登录页面
-│   ├── home_page.dart     # 主页
+│   ├── home_page.dart     # 主页 (登录后)
 │   ├── input_page.dart    # 输入页面（文字/图片识别）
 │   ├── preview_page.dart  # 预览确认页面
 │   └── events_page.dart   # 活动列表页面
@@ -43,6 +52,8 @@ lib/
 │   ├── api_service.dart   # API 请求封装
 │   ├── auth_service.dart  # 认证服务
 │   └── mock_service.dart  # Mock 数据服务
+├── theme/                 # 主题配置
+│   └── app_theme.dart     # 应用主题 (颜色、背景、样式)
 ├── utils/                 # 工具类
 │   ├── date_formatter.dart # 日期格式化
 │   └── validators.dart    # 表单验证
@@ -52,6 +63,11 @@ lib/
     ├── image_picker_widget.dart # 图片选择器
     ├── input_area.dart    # 输入区域
     └── loading_overlay.dart # 加载遮罩
+
+assets/
+└── images/
+    ├── logo.png           # 应用 Logo
+    └── main_picture.png   # Hero 背景图片
 ```
 
 ## 环境要求
@@ -219,6 +235,39 @@ flutter build appbundle --release
 4. **AI 识别** - 系统自动识别并提取活动详情
 5. **预览确认** - 用户查看并编辑识别结果
 6. **保存同步** - 保存活动并可导出 ICS 文件到日历
+
+## 国际化 (i18n)
+
+应用支持三种语言，默认为英文：
+
+| 语言 | 代码 | 文件 |
+|------|------|------|
+| English | `en` | `lib/l10n/app_en.arb` |
+| 中文 | `zh` | `lib/l10n/app_zh.arb` |
+| Deutsch | `de` | `lib/l10n/app_de.arb` |
+
+### 添加新翻译
+
+1. 在 `lib/l10n/app_en.arb` 中添加新的 key（英文为模板）
+2. 在 `app_zh.arb` 和 `app_de.arb` 中添加对应翻译
+3. 运行 `flutter gen-l10n` 重新生成本地化类
+4. 在代码中使用：
+
+```dart
+import '../l10n/app_localizations.dart';
+
+// 在 Widget 中使用
+final l10n = AppLocalizations.of(context)!;
+Text(l10n.welcomeMessage);
+```
+
+### 切换语言
+
+在 `lib/main.dart` 中修改 `locale` 参数：
+
+```dart
+locale: const Locale('zh'), // 切换为中文
+```
 
 ## 开发说明
 

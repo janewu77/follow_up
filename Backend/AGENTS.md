@@ -78,10 +78,10 @@ Backend/
 智能对话接口，基于 LangGraph 的 Agent，支持意图识别和多轮对话。
 
 **功能特性**：
-- 意图识别：自动识别用户意图（闲聊/创建日程/修改日程/删除日程/拒绝）
+- 意图识别：自动识别用户意图（闲聊/创建日程/查询日程/修改日程/删除日程/拒绝）
 - 图片+文字输入：支持同时上传图片和文字消息
 - 对话记忆：维护会话上下文，支持多轮对话
-- 智能操作：根据意图自动执行相应的日程操作
+- 智能操作：根据意图自动执行相应的日程操作（增删改查）
 
 **Header**: `Authorization: Bearer <token>`
 
@@ -117,13 +117,14 @@ Backend/
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | message | string | Agent 回复消息 |
-| intent | string | 识别的意图：`chat`（闲聊）/ `create_event`（创建日程）/ `update_event`（修改日程）/ `delete_event`（删除日程）/ `reject`（拒绝，超出范围） |
+| intent | string | 识别的意图：`chat`（闲聊）/ `create_event`（创建日程）/ `query_event`（查询日程）/ `update_event`（修改日程）/ `delete_event`（删除日程）/ `reject`（拒绝，超出范围） |
 | session_id | string | 会话ID，用于后续多轮对话 |
 | action_result | object | 操作结果（如创建的日程详情），仅在成功执行操作时返回 |
 
 **意图说明**：
 - `chat`: 普通闲聊，Agent 会友好回复
 - `create_event`: 创建新日程，Agent 会解析消息并创建日程
+- `query_event`: 查询日程，Agent 会根据用户请求展示相关日程（如"明天有什么安排？"）
 - `update_event`: 修改现有日程，Agent 会匹配日程并更新
 - `delete_event`: 删除日程，Agent 会匹配日程并删除
 - `reject`: 请求超出范围，Agent 会礼貌拒绝

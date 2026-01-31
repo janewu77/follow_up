@@ -5,9 +5,10 @@ import 'package:provider/provider.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/auth_provider.dart';
 import 'providers/events_provider.dart';
-import 'pages/landing_page.dart';
+// import 'pages/landing_page.dart'; // Hidden for now
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
+import 'pages/chat_page.dart';
 import 'pages/input_page.dart';
 import 'pages/preview_page.dart';
 import 'pages/events_page.dart';
@@ -47,17 +48,24 @@ class FollowUpApp extends StatelessWidget {
         locale: const Locale('en'), // Default to English
         initialRoute: '/',
         onGenerateRoute: (settings) {
-          // 路由生成器，用于传递参数
+          // Route generator for passing arguments
           switch (settings.name) {
             case '/':
+              // Start with login page (LandingPage hidden for now)
               return MaterialPageRoute(
-                builder: (_) => const LandingPage(),
+                builder: (_) => const LoginPage(),
               );
             case '/login':
               return MaterialPageRoute(
                 builder: (_) => const LoginPage(),
               );
+            case '/chat':
+              // New AI chat page (main page after login)
+              return MaterialPageRoute(
+                builder: (_) => const ChatPage(),
+              );
             case '/home':
+              // Legacy home page (kept for compatibility)
               return MaterialPageRoute(
                 builder: (_) => const HomePage(),
               );
@@ -77,7 +85,7 @@ class FollowUpApp extends StatelessWidget {
               );
             default:
               return MaterialPageRoute(
-                builder: (_) => const LandingPage(),
+                builder: (_) => const LoginPage(),
               );
           }
         },
