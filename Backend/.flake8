@@ -1,0 +1,12 @@
+[flake8]
+# 忽略行长度检查
+max-line-length = 200
+extend-ignore = E501
+
+# 排除目录
+exclude =
+    .venv,
+    __pycache__,
+    .git,
+    build,
+    dist

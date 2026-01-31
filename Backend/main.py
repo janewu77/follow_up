@@ -1,5 +1,9 @@
 """
 FollowUP Backend - FastAPI Application
+
+路由结构：
+- /api/*   - 真实 API（使用数据库 + LLM）
+- /mock/*  - Mock API（内存存储 + 模拟数据，用于前端开发）
 """
 import os
 from pathlib import Path
@@ -7,6 +11,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+
+# 导入路由
+from routers import api_router, mock_router
 
 app = FastAPI(
     title="FollowUP API",
@@ -23,21 +30,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 注册真实 API 路由 (/api/*)
+app.include_router(api_router)
+
+# 注册 Mock API 路由 (/mock/*)
+app.include_router(mock_router)
+
 
 @app.get("/api/health")
 async def health_check():
     """健康检查端点"""
     return {"status": "healthy"}
-
-
-# TODO: 后续添加以下 API 路由
-# - POST /api/auth/login
-# - GET /api/user/me
-# - POST /api/parse
-# - GET /api/events
-# - POST /api/events/follow
-# - DELETE /api/events/{id}
-# - GET /api/events/{id}/ics
 
 
 # Flutter Web 静态文件托管
@@ -65,12 +68,26 @@ if FLUTTER_WEB_DIR.exists():
 else:
     @app.get("/")
     async def root():
-        """Flutter Web 未构建时的提示"""
+        """API 根路径 - Flutter Web 未构建时的提示"""
         return {
             "status": "ok",
             "message": "FollowUP API is running!",
+            "docs": "/docs",
             "note": "Flutter Web not built yet. Run: cd Frontend/followup && flutter build web",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "api_endpoints": {
+                "auth": "POST /api/auth/login",
+                "user": "GET /api/user/me",
+                "parse": "POST /api/parse",
+                "events": "GET/POST /api/events",
+                "health": "GET /api/health",
+            },
+            "mock_endpoints": {
+                "auth": "POST /mock/auth/login",
+                "user": "GET /mock/user/me",
+                "parse": "POST /mock/parse",
+                "events": "GET/POST /mock/events",
+            },
         }
 
 

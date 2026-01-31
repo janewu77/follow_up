@@ -1,0 +1,39 @@
+[project]
+name = "followup-backend"
+version = "0.1.0"
+description = "FollowUP Backend - 智能日程助手 API"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "sqlalchemy>=2.0.25",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "langchain>=0.1.0",
+    "langchain-openai>=0.0.2",
+    "python-multipart>=0.0.6",
+    "icalendar>=5.0.11",
+    "pydantic>=2.5.3",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+    "psycopg2-binary>=2.9.9",
+]
+
+[project.scripts]
+dev = "uvicorn main:app --reload"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4.0",
+    "httpx>=0.26.0",
+    "ruff>=0.1.0",
+]
+
+[tool.ruff]
+line-length = 200
+exclude = [".venv", "__pycache__", ".git"]
+
+[tool.ruff.lint]
+# 忽略行长度检查
+ignore = ["E501"]
