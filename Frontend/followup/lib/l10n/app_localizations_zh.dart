@@ -596,4 +596,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get footerDescription => '将生活中的瞬间转化为日历事件\n让你不再为记住事情而烦恼';
+
+  @override
+  String chatWelcome(String username) {
+    return '你好 $username！👋 我是你的 FollowUP 助手。告诉我你想添加的活动，或者粘贴任何包含活动信息的文字。';
+  }
+
+  @override
+  String get chatStartHint => '开始对话来添加活动';
+
+  @override
+  String get chatInputHint => '描述一个活动或粘贴文字...';
+
+  @override
+  String get chatProcessing => '我在你的消息中发现了活动信息！需要我提取详情并添加到日历吗？';
+
+  @override
+  String get chatExtractEvent => '提取活动';
+
+  @override
+  String get chatUploadImage => '上传图片';
+
+  @override
+  String get chatViewEvents => '我的活动';
 }

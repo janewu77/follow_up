@@ -1263,6 +1263,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Transform life\'s moments into calendar events\nNever worry about forgetting again'**
   String get footerDescription;
+
+  /// No description provided for @chatWelcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Hi {username}! 👋 I\'m your FollowUP assistant. Tell me about an event you\'d like to add to your calendar, or paste any text containing event information.'**
+  String chatWelcome(String username);
+
+  /// No description provided for @chatStartHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a conversation to add events'**
+  String get chatStartHint;
+
+  /// No description provided for @chatInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe an event or paste text...'**
+  String get chatInputHint;
+
+  /// No description provided for @chatProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'I found event information in your message! Would you like me to extract the details and add it to your calendar?'**
+  String get chatProcessing;
+
+  /// No description provided for @chatExtractEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Extract Event'**
+  String get chatExtractEvent;
+
+  /// No description provided for @chatUploadImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload Image'**
+  String get chatUploadImage;
+
+  /// No description provided for @chatViewEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'My Events'**
+  String get chatViewEvents;
 }
 
 class _AppLocalizationsDelegate
