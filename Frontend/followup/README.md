@@ -73,18 +73,36 @@ flutter pub get
 
 ### 2. 配置后端地址
 
-编辑 `lib/config.dart` 文件，配置后端 API 地址：
+项目支持通过环境变量配置 API 地址，无需修改代码即可切换环境。
+
+#### 环境配置方式
+
+| 场景 | 命令 |
+|------|------|
+| 生产环境（默认） | `flutter run -d chrome` |
+| 本地开发 | `flutter run -d chrome --dart-define=ENV=dev` |
+| 自定义 URL | `flutter run -d chrome --dart-define=API_BASE_URL=http://your-api.com` |
+
+#### 预设环境
+
+- **生产环境** (`ENV=prod`，默认): `https://web-production-d2e00.up.railway.app`
+- **开发环境** (`ENV=dev`): `http://localhost:8000`
+
+#### 代码中使用
 
 ```dart
-class ApiConfig {
-  // 本地开发
-  static const String baseUrl = "http://localhost:8000";
-  
-  // 生产环境
-  // static const String baseUrl = "https://your-app.railway.app";
-  
-  // API 超时设置
-  static const Duration timeout = Duration(seconds: 30);
+import 'config.dart';
+
+// 获取当前 API 地址
+String url = ApiConfig.baseUrl;
+
+// 判断当前环境
+if (ApiConfig.isDev) {
+  print('开发环境');
+}
+
+if (ApiConfig.isProd) {
+  print('生产环境');
 }
 ```
 
@@ -120,7 +138,14 @@ flutter run -d macos
 ### Web 版本
 
 ```bash
+# 生产环境构建（默认）
 flutter build web --release
+
+# 开发环境构建
+flutter build web --release --dart-define=ENV=dev
+
+# 自定义后端地址构建
+flutter build web --release --dart-define=API_BASE_URL=https://your-custom-api.com
 ```
 
 构建产物位于 `build/web/` 目录。
@@ -128,13 +153,22 @@ flutter build web --release
 ### iOS 版本
 
 ```bash
+# 生产环境
 flutter build ios --release
+
+# 开发环境
+flutter build ios --release --dart-define=ENV=dev
 ```
 
 ### Android 版本
 
 ```bash
+# 生产环境
 flutter build apk --release
+
+# 开发环境
+flutter build apk --release --dart-define=ENV=dev
+
 # 或构建 App Bundle
 flutter build appbundle --release
 ```

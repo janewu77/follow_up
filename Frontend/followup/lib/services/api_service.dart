@@ -9,7 +9,7 @@ import 'mock_service.dart';
 // API 服务封装
 class ApiService {
   // 是否使用 Mock 数据（开发时设为 true）
-  static bool useMock = true;
+  static bool useMock = false;
 
   // 获取认证 Headers
   static Future<Map<String, String>> _authHeaders() async {
