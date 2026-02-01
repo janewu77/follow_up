@@ -42,7 +42,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get testAccountAlice => '用户名: alice / 密码: alice123';
 
   @override
-  String get testAccountDemo => '用户名: demo / 密码: demo123';
+  String get testAccountDemo => '用户名: jane / 密码: jane123';
 
   @override
   String get home => '首页';

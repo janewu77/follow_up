@@ -42,7 +42,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get testAccountAlice => 'Username: alice / Password: alice123';
 
   @override
-  String get testAccountDemo => 'Username: demo / Password: demo123';
+  String get testAccountDemo => 'Username: jane / Password: jane123';
 
   @override
   String get home => 'Home';

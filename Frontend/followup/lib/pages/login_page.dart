@@ -330,6 +330,49 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
+                
+                const SizedBox(height: 16),
+                
+                // Test account info
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: FollowUpColors.lightTeal.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: FollowUpColors.lightTeal.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.testAccount,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: FollowUpColors.sageGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        l10n.testAccountAlice,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: FollowUpColors.textColor.withValues(alpha: 0.8),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        l10n.testAccountDemo,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: FollowUpColors.textColor.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

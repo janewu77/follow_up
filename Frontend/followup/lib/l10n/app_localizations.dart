@@ -169,7 +169,7 @@ abstract class AppLocalizations {
   /// No description provided for @testAccountDemo.
   ///
   /// In en, this message translates to:
-  /// **'Username: demo / Password: demo123'**
+  /// **'Username: jane / Password: jane123'**
   String get testAccountDemo;
 
   /// No description provided for @home.
