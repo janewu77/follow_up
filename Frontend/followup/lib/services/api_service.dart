@@ -64,10 +64,12 @@ class ApiService {
   }
 
   // 解析日程
+  // 支持单张图片 (imageBase64) 或多张图片 (imagesBase64)
   static Future<ParseResponse> parseEvent({
     required String inputType,
     String? textContent,
     String? imageBase64,
+    List<String>? imagesBase64,
     String? additionalNote,
   }) async {
     if (useMock) {
@@ -79,15 +81,23 @@ class ApiService {
       );
     }
 
+    final body = <String, dynamic>{
+      "input_type": inputType,
+      if (textContent != null) "text_content": textContent,
+      if (additionalNote != null) "additional_note": additionalNote,
+    };
+
+    // 优先使用多图片数组，否则使用单张图片
+    if (imagesBase64 != null && imagesBase64.isNotEmpty) {
+      body["images_base64"] = imagesBase64;
+    } else if (imageBase64 != null) {
+      body["image_base64"] = imageBase64;
+    }
+
     final response = await http.post(
       Uri.parse("${ApiConfig.baseUrl}/api/parse"),
       headers: await _authHeaders(),
-      body: jsonEncode({
-        "input_type": inputType,
-        "text_content": textContent,
-        "image_base64": imageBase64,
-        "additional_note": additionalNote,
-      }),
+      body: jsonEncode(body),
     );
 
     if (response.statusCode == 200) {
