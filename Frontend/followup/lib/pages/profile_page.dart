@@ -506,7 +506,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     )
                   : Icon(
-                      Icons.refresh,
+                      Icons.sync,
                       color: _isConnected == true
                           ? AppColors.success
                           : AppColors.primary,
