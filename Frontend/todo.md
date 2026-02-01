@@ -107,12 +107,17 @@ ApiService.deleteDuplicates(eventIds)
 ---
 
 ### 9. ChatService 添加 clearHistory ✅
-**Commit:** `b5ef576`
+**Commit:** `b5ef576`, `9d14975`
 
 ```dart
 ChatService.clearHistory(sessionId)
 ```
 调用 `DELETE /api/chat/{session_id}`，清除服务端对话历史
+
+**前端控制：**
+- 验证用户登录状态
+- 使用用户名作为 session ID，确保只能删除自己的历史
+- ChatPage `_clearConversation()` 同步清除服务端和本地历史
 
 ---
 
