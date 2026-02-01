@@ -1,7 +1,7 @@
 """
-LangGraph Agent 实现 - 智能日程助手
+LangGraph Agent Implementation - Smart Calendar Assistant
 
-使用 LangGraph 构建状态图，实现意图识别和多轮对话。
+Uses LangGraph to build state graph for intent recognition and multi-turn conversation.
 """
 import json
 from datetime import datetime
@@ -51,11 +51,11 @@ class AgentState(TypedDict):
 
 
 # ============================================================================
-# 节点实现
+# Node Implementation
 # ============================================================================
 
 def get_llm() -> ChatOpenAI:
-    """获取 LLM 实例"""
+    """Get LLM instance"""
     import os
     api_key = settings.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY")
     return ChatOpenAI(
@@ -90,7 +90,7 @@ def classify_intent(state: AgentState) -> AgentState:
         conversation_history=state.get("conversation_history", ""),
     )
     
-    # 如果有图片，使用多模态
+    # Use multimodal if image is present
     if state.get("image_base64"):
         content = [
             {"type": "text", "text": prompt[1].content},
@@ -131,7 +131,7 @@ def classify_intent(state: AgentState) -> AgentState:
 
 
 def handle_chat(state: AgentState) -> AgentState:
-    """处理闲聊对话"""
+    """Handle chat conversation"""
     logger.debug("Handling chat...")
     
     llm = get_llm()
@@ -179,16 +179,16 @@ async def handle_chat_stream(state: AgentState):
 
 def check_duplicate_event(db: Session, user_id: int, title: str, start_time: datetime) -> Event | None:
     """
-    检查是否存在重复事件（相同标题 + 相同开始时间）
+    Check if duplicate event exists (same title + same start time)
     
     Args:
-        db: 数据库会话
-        user_id: 用户 ID
-        title: 事件标题
-        start_time: 开始时间
+        db: Database session
+        user_id: User ID
+        title: Event title
+        start_time: Start time
         
     Returns:
-        如果存在重复事件，返回该事件；否则返回 None
+        If duplicate event exists, return it; otherwise return None
     """
     existing = db.query(Event).filter(
         Event.user_id == user_id,
@@ -218,15 +218,15 @@ def handle_create_event(state: AgentState) -> AgentState:
             from services.llm_service import parse_images_with_llm
             from services.image_utils import generate_thumbnail
             
-            # 批量解析多张图片
+            # Batch parse multiple images
             parsed_events = parse_images_with_llm(images_base64, state.get("message", ""))
             
             if not parsed_events:
-                # 如果没有解析出事件，降级到单图片/文本处理
+                # If no events parsed, fallback to single image/text processing
                 logger.warning(f"No events parsed from {len(images_base64)} images, falling back to text extraction")
-                images_base64 = images_base64[:1]  # 只使用第一张图片
+                images_base64 = images_base64[:1]  # Only use first image
             
-            # 为每个解析出的事件创建数据库记录
+            # Create database records for each parsed event
             created_events = []
             duplicate_events = []
             for parsed_event in parsed_events:
@@ -266,41 +266,41 @@ def handle_create_event(state: AgentState) -> AgentState:
             logger.info(f"Created {len(created_events)} event(s) from {len(images_base64)} image(s)")
             
             
-            # 构建响应
+            # Build response
             response_text = ""
             
-            # 如果有重复事件，先提示用户
+            # If there are duplicate events, notify user first
             if duplicate_events:
                 if len(duplicate_events) == 1:
                     dup = duplicate_events[0]
-                    response_text += f"⚠️ 这个日程已经存在了：**{dup.title}**（{dup.start_time.strftime('%Y年%m月%d日 %H:%M')}）。需要我帮您修改吗？\n\n"
+                    response_text += f"⚠️ This event already exists: **{dup.title}** ({dup.start_time.strftime('%Y-%m-%d %H:%M')}). Would you like me to modify it?\n\n"
                 else:
-                    response_text += f"⚠️ 发现 {len(duplicate_events)} 个重复的日程，已跳过。\n\n"
+                    response_text += f"⚠️ Found {len(duplicate_events)} duplicate event(s), skipped.\n\n"
             
-            # 如果有新创建的事件，显示创建结果
+            # If there are newly created events, show creation results
             if created_events:
                 if len(created_events) == 1:
                     event = created_events[0]
-                    response_text += f"好的，我已经为您创建了日程：\n\n"
+                    response_text += f"Event created:\n\n"
                     response_text += f"📅 **{event.title}**\n"
-                    response_text += f"⏰ 时间：{event.start_time.strftime('%Y年%m月%d日 %H:%M')}"
+                    response_text += f"⏰ Time: {event.start_time.strftime('%Y-%m-%d %H:%M')}"
                     if event.end_time:
                         response_text += f" - {event.end_time.strftime('%H:%M')}"
                     response_text += "\n"
                     if event.location:
-                        response_text += f"📍 地点：{event.location}\n"
+                        response_text += f"📍 Location: {event.location}\n"
                     if event.description:
-                        response_text += f"📝 备注：{event.description}\n"
+                        response_text += f"📝 Notes: {event.description}\n"
                 else:
-                    response_text += f"好的，我已经从 {len(images_base64)} 张图片中为您创建了 {len(created_events)} 个日程：\n\n"
+                    response_text += f"Created {len(created_events)} event(s) from {len(images_base64)} image(s):\n\n"
                     for idx, event in enumerate(created_events, 1):
-                        response_text += f"{idx}. **{event.title}** - {event.start_time.strftime('%Y年%m月%d日 %H:%M')}\n"
+                        response_text += f"{idx}. **{event.title}** - {event.start_time.strftime('%Y-%m-%d %H:%M')}\n"
             
-            # 如果既没有创建也没有重复，说明所有事件都重复了
+            # If neither created nor duplicate, all events were duplicates
             if not created_events and not duplicate_events:
-                response_text = "抱歉，无法从图片中提取到有效的日程信息。"
+                response_text = "Sorry, couldn't extract valid event information from the image(s)."
             
-            # 为每个创建的事件生成 ICS 内容
+            # Generate ICS content for each created event
             from services.ics_service import generate_ics_content
             events_with_ics = []
             for e in created_events:
@@ -652,23 +652,23 @@ def handle_create_event(state: AgentState) -> AgentState:
 
 
 def handle_update_event(state: AgentState) -> AgentState:
-    """处理修改日程"""
+    """Handle event update"""
     logger.debug("Handling update event...")
     
     db = state["db"]
     user_id = state["user_id"]
     
-    # 获取用户的日程列表
+    # Get user's event list
     events = db.query(Event).filter(Event.user_id == user_id).order_by(Event.start_time).all()
     
     if not events:
         return {
             **state,
-            "response": "您目前没有任何日程，无法进行修改。",
+            "response": "You don't have any events to update.",
             "action_result": {"action": "update_event", "error": "no_events"},
         }
     
-    # 使用 LLM 匹配目标日程
+    # Use LLM to match target event
     llm = get_llm()
     events_list = json.dumps([
         {
@@ -945,11 +945,11 @@ def handle_reject(state: AgentState) -> AgentState:
 
 
 # ============================================================================
-# 路由函数
+# Routing Functions
 # ============================================================================
 
 def route_by_intent(state: AgentState) -> str:
-    """根据意图路由到不同的处理节点"""
+    """Route to different processing nodes based on intent"""
     intent = state.get("intent", "chat")
     
     if intent == "create_event":

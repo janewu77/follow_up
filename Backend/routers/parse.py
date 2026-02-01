@@ -124,7 +124,7 @@ def parse_image_fallback(image_base64: str, additional_note: str = None) -> list
 
 
 def is_llm_available() -> bool:
-    """动态检查 LLM 是否可用"""
+    """Dynamically check if LLM is available"""
     try:
         from config import settings
         return bool(settings.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY"))
@@ -142,9 +142,9 @@ class TextParseResult:
 
 def parse_text(text: str, additional_note: str = None) -> TextParseResult:
     """
-    解析文字内容
-    优先使用 LLM，如果 LLM 不可用则使用简单的关键词解析
-    返回包含事件列表和可能的澄清问题
+    Parse text content
+    Prioritizes LLM, falls back to simple keyword parsing if LLM unavailable
+    Returns event list and possible clarification questions
     """
     llm_available = is_llm_available()
     logger.debug(f"Parsing text (length={len(text)}, LLM_AVAILABLE={llm_available})")
@@ -173,7 +173,7 @@ def parse_text(text: str, additional_note: str = None) -> TextParseResult:
 
 
 class ImageParseResult:
-    """图片解析结果"""
+    """Image parsing result"""
     def __init__(self, events: list, needs_clarification: bool = False, clarification_question: str = None):
         self.events = events
         self.needs_clarification = needs_clarification
@@ -222,7 +222,7 @@ def parse_image(image_base64: str, additional_note: str = None) -> ImageParseRes
         logger.error(f"LLM image parsing failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"图片解析失败: {str(e)}",
+            detail=f"Image parsing failed: {str(e)}",
         )
 
 
@@ -240,20 +240,20 @@ def parse_images(images_base64: List[str], additional_note: str = None) -> list[
         logger.error("Cannot parse images: LLM service unavailable (OPENAI_API_KEY not configured)")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="图片解析服务暂不可用，请联系管理员配置 OpenAI API Key",
+            detail="Image parsing service is temporarily unavailable. Please contact administrator to configure OpenAI API Key",
         )
     
     all_events = []
     
     try:
         from services.llm_service import parse_images_with_llm
-        # 尝试批量处理
+        # Try batch processing
         events = parse_images_with_llm(images_base64, additional_note)
         if events:
             elapsed = time.time() - start_time
             logger.info(f"LLM batch parsed {len(events)} event(s) from {len(images_base64)} image(s) in {elapsed:.2f}s")
             
-            # 为每个事件生成并附加缩略图（使用第一张图片的缩略图）
+            # Generate and attach thumbnail for each event (using first image's thumbnail)
             if images_base64:
                 thumbnail = generate_thumbnail(images_base64[0])
                 for event in events:

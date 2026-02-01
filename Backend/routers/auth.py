@@ -1,8 +1,8 @@
 """
-认证路由 - /api/auth/*
+Authentication Router - /api/auth/*
 
-使用固定 Token 认证（Token = 密码）
-从数据库查询用户
+Uses fixed Token authentication (Token = password)
+Queries users from database
 """
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.orm import Session
@@ -14,7 +14,7 @@ from logging_config import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/auth", tags=["认证"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -23,11 +23,11 @@ async def login(
     db: Session = Depends(get_db),
 ):
     """
-    用户登录
+    User login
 
-    验证用户名和密码，返回 Token（Token = 密码）
+    Validates username and password, returns Token (Token = password)
 
-    预置用户：
+    Preset users:
     - alice / alice123
     - bob / bob123
     - jane / jane123
@@ -36,7 +36,7 @@ async def login(
     """
     logger.info(f"Login attempt for username: {request.username}")
     
-    # 从数据库查询用户
+    # Query user from database
     user = db.query(User).filter(User.username == request.username).first()
 
     if user is None:
@@ -53,7 +53,7 @@ async def login(
             detail="Invalid credentials",
         )
 
-    # Token 就是密码
+    # Token is the password
     access_token = request.password
     
     logger.info(f"Login successful for user: {user.username} (id={user.id})")

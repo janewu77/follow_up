@@ -1,8 +1,8 @@
 """
-用户路由 - /api/user/*
+User Router - /api/user/*
 
-使用固定 Token 认证
-从数据库查询用户
+Uses fixed Token authentication
+Queries users from database
 """
 from fastapi import APIRouter, Depends
 
@@ -13,7 +13,7 @@ from logging_config import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/user", tags=["用户"])
+router = APIRouter(prefix="/user", tags=["Users"])
 
 
 @router.get("/me", response_model=UserResponse)
@@ -21,11 +21,11 @@ async def get_current_user_info(
     current_user: User = Depends(get_current_user),
 ):
     """
-    获取当前登录用户信息
+    Get current logged-in user info
 
-    需要在 Header 中携带 Authorization: Bearer <token>
+    Requires Authorization header: Authorization: Bearer <token>
 
-    示例：Authorization: Bearer alice123
+    Example: Authorization: Bearer alice123
     """
     logger.debug(f"Getting user info for: {current_user.username} (id={current_user.id})")
     return UserResponse(

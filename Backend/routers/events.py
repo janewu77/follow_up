@@ -27,7 +27,7 @@ from logging_config import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/events", tags=["活动管理"])
+router = APIRouter(prefix="/events", tags=["Event Management"])
 
 
 def event_to_response(event: Event, include_ics: bool = False) -> EventResponse:

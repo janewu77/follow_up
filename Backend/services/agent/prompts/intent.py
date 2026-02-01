@@ -83,30 +83,30 @@ CHAT_PROMPT = ChatPromptTemplate.from_messages([
 
 
 # ============================================================================
-# 日程匹配 Prompt（用于修改/删除时找到目标日程）
+# Event Matching Prompt (for finding target event when updating/deleting)
 # ============================================================================
 
-EVENT_MATCH_SYSTEM = """你是一个智能日程助手。用户想要修改或删除一个日程，你需要根据用户的描述，从现有日程列表中找到最匹配的那个。
+EVENT_MATCH_SYSTEM = """You are a smart calendar assistant. User wants to update or delete an event, you need to find the best matching event from the existing event list based on user's description.
 
-⚠️ 重要：请仔细阅读对话历史！用户当前的描述可能是对之前对话的回应，需要结合上下文理解用户的真实意图。
+⚠️ IMPORTANT: Please read the conversation history carefully! The user's current message may be a response to previous conversation, you need to understand user's true intent by combining context.
 
-例如：
-- 如果之前助手提到"2/7 郊游和技术分享会时间冲突"，用户回复"解决冲突"或"调整一下"，那么目标就是这两个日程之一
-- 如果之前助手提到某个重复的日程，用户回复"删掉重复的"，那么目标就是之前提到的那个日程
+Examples:
+- If the assistant previously mentioned "2/7 outing conflicts with tech sharing session", and user replies "resolve the conflict" or "adjust it", the target is one of these two events
+- If the assistant previously mentioned a duplicate event, and user replies "delete the duplicate", the target is the event mentioned before
 
-现有日程列表（JSON 格式）：
+Existing event list (JSON format):
 {events_list}
 
-对话历史（请仔细阅读以理解上下文）：
+Conversation history (please read carefully to understand context):
 {conversation_history}
 
-用户当前消息：
+User's current message:
 {user_description}
 
-请结合对话历史分析用户意图，找到最匹配的日程。返回 JSON 格式：
-{{"matched_event_id": 日程ID或null, "confidence": 0.0-1.0, "reason": "匹配理由（说明如何从上下文推断出目标日程）"}}
+Please analyze user's intent by combining conversation history, find the best matching event. Return JSON format:
+{{"matched_event_id": event_id_or_null, "confidence": 0.0-1.0, "reason": "matching reason (explain how you inferred the target event from context)"}}
 
-如果没有找到匹配的日程，matched_event_id 返回 null。
+If no matching event is found, matched_event_id should be null.
 """
 
 EVENT_MATCH_PROMPT = ChatPromptTemplate.from_messages([

@@ -1,5 +1,5 @@
 """
-对话记忆管理 - 使用数据库存储对话历史
+Conversation Memory Management - Store conversation history in database
 """
 import uuid
 from datetime import datetime
@@ -13,27 +13,27 @@ logger = get_logger(__name__)
 
 
 class ConversationMemory:
-    """对话记忆管理器"""
+    """Conversation memory manager"""
     
     def __init__(self, db: Session, user_id: int, session_id: Optional[str] = None):
         """
-        初始化对话记忆
+        Initialize conversation memory
         
         Args:
-            db: 数据库会话
-            user_id: 用户 ID
-            session_id: 会话 ID（可选，不传则自动生成）
+            db: Database session
+            user_id: User ID
+            session_id: Session ID (optional, auto-generated if not provided)
         """
         self.db = db
         self.user_id = user_id
         self.session_id = session_id or str(uuid.uuid4())
         self._conversation: Optional[Conversation] = None
         
-        # 加载或创建会话
+        # Load or create conversation
         self._load_or_create()
     
     def _load_or_create(self):
-        """加载现有会话或创建新会话"""
+        """Load existing conversation or create new one"""
         self._conversation = self.db.query(Conversation).filter(
             Conversation.session_id == self.session_id,
             Conversation.user_id == self.user_id,
@@ -54,11 +54,11 @@ class ConversationMemory:
     
     def add_message(self, role: str, content: str):
         """
-        添加消息到对话历史
+        Add message to conversation history
         
         Args:
-            role: 消息角色 (user/assistant)
-            content: 消息内容
+            role: Message role (user/assistant)
+            content: Message content
         """
         message = {
             "role": role,
@@ -66,7 +66,7 @@ class ConversationMemory:
             "timestamp": datetime.utcnow().isoformat(),
         }
         
-        # 更新消息列表
+        # Update message list
         messages = list(self._conversation.messages) if self._conversation.messages else []
         messages.append(message)
         self._conversation.messages = messages
@@ -77,40 +77,40 @@ class ConversationMemory:
     
     def get_messages(self, limit: int = 10) -> List[dict]:
         """
-        获取最近的对话消息
+        Get recent conversation messages
         
         Args:
-            limit: 返回的最大消息数量
+            limit: Maximum number of messages to return
             
         Returns:
-            消息列表
+            List of messages
         """
         messages = self._conversation.messages or []
         return messages[-limit:] if len(messages) > limit else messages
     
     def get_formatted_history(self, limit: int = 10) -> str:
         """
-        获取格式化的对话历史（用于 prompt）
+        Get formatted conversation history (for prompt)
         
         Args:
-            limit: 返回的最大消息数量
+            limit: Maximum number of messages to return
             
         Returns:
-            格式化的对话历史字符串
+            Formatted conversation history string
         """
         messages = self.get_messages(limit)
         if not messages:
-            return "（无历史对话）"
+            return "(No conversation history)"
         
         formatted = []
         for msg in messages:
-            role = "用户" if msg["role"] == "user" else "助手"
+            role = "User" if msg["role"] == "user" else "Assistant"
             formatted.append(f"{role}: {msg['content']}")
         
         return "\n".join(formatted)
     
     def clear(self):
-        """清空对话历史"""
+        """Clear conversation history"""
         self._conversation.messages = []
         self._conversation.updated_at = datetime.utcnow()
         self.db.commit()
@@ -118,5 +118,5 @@ class ConversationMemory:
     
     @property
     def conversation_id(self) -> str:
-        """返回会话 ID"""
+        """Return session ID"""
         return self.session_id

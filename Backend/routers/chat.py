@@ -55,25 +55,25 @@ async def chat(
     if request.images_base64:
         images_base64 = request.images_base64
     elif request.image_base64:
-        # 向后兼容：单张图片
+        # Backward compatibility: single image
         images_base64 = [request.image_base64]
     
-    # 传递给 agent 的图片（chat 接口目前只支持单张图片，多张图片会使用第一张）
+    # Image to pass to agent (chat interface currently only supports single image, multiple images will use the first one)
     image_base64_for_agent = images_base64[0] if images_base64 else None
     
     if stream:
-        # 流式响应需要在生成器内获取对话历史
-        # 预先获取对话历史（在原 Session 有效时）
+        # Streaming response needs to get conversation history in generator
+        # Pre-fetch conversation history (while original Session is valid)
         memory_for_history = ConversationMemory(
             db=db,
             user_id=current_user.id,
             session_id=request.session_id,
         )
         conversation_history = memory_for_history.get_formatted_history(limit=10)
-        # 流式响应
-        # 注意：需要在生成器内部创建独立的数据库会话，因为 FastAPI 的依赖注入会在返回 StreamingResponse 后关闭原 Session
+        # Streaming response
+        # Note: Need to create independent database session inside generator, because FastAPI's dependency injection will close the original Session after returning StreamingResponse
         
-        # 预先获取需要的用户信息（避免在生成器中访问已关闭的 Session）
+        # Pre-fetch required user info (avoid accessing closed Session in generator)
         user_id = current_user.id
         session_id = request.session_id
         message = request.message
@@ -182,7 +182,7 @@ async def chat(
                 conversation_history=conversation_history,
             )
             
-            # 添加助手回复到记忆
+            # Add assistant reply to memory
             memory.add_message("assistant", result["response"])
             
             logger.info(f"Chat completed: intent={result['intent']}, session_id={memory.conversation_id}")
@@ -198,7 +198,7 @@ async def chat(
             logger.error(f"Chat error: {e}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"处理请求时出错：{str(e)}",
+                detail=f"Error processing request: {str(e)}",
             )
 
 
