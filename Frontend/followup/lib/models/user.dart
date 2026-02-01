@@ -2,16 +2,21 @@
 class User {
   final int id;
   final String username;
+  final DateTime? createdAt; // 注册时间
 
   User({
     required this.id,
     required this.username,
+    this.createdAt,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as int,
       username: json['username'] as String,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
     );
   }
 
@@ -19,6 +24,7 @@ class User {
     return {
       'id': id,
       'username': username,
+      if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
     };
   }
 }

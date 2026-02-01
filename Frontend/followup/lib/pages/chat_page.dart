@@ -454,7 +454,9 @@ class _ChatPageState extends State<ChatPage> {
               child: const Icon(Icons.person_outline, color: AppColors.primary),
             ),
             onSelected: (value) {
-              if (value == 'events') {
+              if (value == 'profile') {
+                Navigator.pushNamed(context, '/profile');
+              } else if (value == 'events') {
                 Navigator.pushNamed(context, '/events');
               } else if (value == 'new_chat') {
                 _clearConversation();
@@ -464,6 +466,16 @@ class _ChatPageState extends State<ChatPage> {
               }
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.account_circle_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('个人信息'),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'events',
                 child: Row(
