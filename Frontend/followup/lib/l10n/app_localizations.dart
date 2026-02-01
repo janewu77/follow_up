@@ -1336,6 +1336,36 @@ abstract class AppLocalizations {
   /// **'Quick Actions'**
   String get quickActions;
 
+  /// No description provided for @serverConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Server Connection'**
+  String get serverConnection;
+
+  /// No description provided for @connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get connected;
+
+  /// No description provided for @disconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get disconnected;
+
+  /// No description provided for @testing.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing...'**
+  String get testing;
+
+  /// No description provided for @unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
+
   /// No description provided for @myEvents.
   ///
   /// In en, this message translates to:

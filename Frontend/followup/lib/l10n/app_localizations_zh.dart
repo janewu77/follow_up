@@ -636,6 +636,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get quickActions => '快捷操作';
 
   @override
+  String get serverConnection => '服务器连接';
+
+  @override
+  String get connected => '已连接';
+
+  @override
+  String get disconnected => '未连接';
+
+  @override
+  String get testing => '测试中...';
+
+  @override
+  String get unknown => '未知';
+
+  @override
   String get myEvents => '我的日程';
 
   @override

@@ -659,6 +659,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quickActions => 'Quick Actions';
 
   @override
+  String get serverConnection => 'Server Connection';
+
+  @override
+  String get connected => 'Connected';
+
+  @override
+  String get disconnected => 'Disconnected';
+
+  @override
+  String get testing => 'Testing...';
+
+  @override
+  String get unknown => 'Unknown';
+
+  @override
   String get myEvents => 'My Events';
 
   @override
