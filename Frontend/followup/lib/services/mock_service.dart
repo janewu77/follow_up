@@ -72,7 +72,21 @@ class MockService {
   // 模拟获取活动列表
   static Future<List<EventData>> getEvents({bool followedOnly = false}) async {
     await Future.delayed(const Duration(milliseconds: 300));
+    return _getMockEvents(followedOnly: followedOnly);
+  }
 
+  // 模拟获取单个活动
+  static Future<EventData> getEvent(int id) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    final events = _getMockEvents();
+    return events.firstWhere(
+      (e) => e.id == id,
+      orElse: () => throw Exception("活动不存在"),
+    );
+  }
+
+  // Mock 活动数据
+  static List<EventData> _getMockEvents({bool followedOnly = false}) {
     final allEvents = [
       EventData(
         id: 1,

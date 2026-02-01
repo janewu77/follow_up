@@ -98,6 +98,26 @@ class ApiService {
     }
   }
 
+  // 获取单个活动详情
+  static Future<EventData> getEvent(int id) async {
+    if (useMock) {
+      return MockService.getEvent(id);
+    }
+
+    final response = await http.get(
+      Uri.parse("${ApiConfig.baseUrl}/api/events/$id"),
+      headers: await _authHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      return EventData.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 404) {
+      throw Exception("活动不存在");
+    } else {
+      throw Exception("获取活动详情失败");
+    }
+  }
+
   // 创建活动
   static Future<EventData> createEvent(EventData event) async {
     if (useMock) {
