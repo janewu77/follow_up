@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -143,7 +144,7 @@ class _PreviewPageState extends State<PreviewPage> {
 
       if (success && mounted) {
         SnackBarHelper.showSuccess(context, l10n.activitySaved);
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+        // 保存成功后留在当前页面，不跳转
       } else if (mounted && eventsProvider.error != null) {
         SnackBarHelper.showError(context, eventsProvider.error!);
       }
@@ -358,13 +359,196 @@ class _PreviewPageState extends State<PreviewPage> {
     );
   }
 
+  Widget _buildThumbnailSection(BuildContext context, String base64Image, String title) {
+    final l10n = AppLocalizations.of(context)!;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.image_outlined,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.sourceImage,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 图片
+          GestureDetector(
+            onTap: () => _showThumbnailModal(context, base64Image, title),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
+              child: Image.memory(
+                base64Decode(base64Image),
+                width: double.infinity,
+                height: 180,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: double.infinity,
+                    height: 180,
+                    color: AppColors.surface,
+                    child: Center(
+                      child: Icon(
+                        Icons.image_not_supported_outlined,
+                        size: 48,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showThumbnailModal(BuildContext context, String base64Image, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 关闭按钮
+            Align(
+              alignment: Alignment.topRight,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // 图片容器
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.cardBg,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 标题栏
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: AppColors.cardBg,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // 图片
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.9,
+                        maxHeight: MediaQuery.of(context).size.height * 0.6,
+                      ),
+                      child: Image.memory(
+                        base64Decode(base64Image),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 200,
+                            height: 200,
+                            color: AppColors.surface,
+                            child: Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: 64,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildForm(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    final currentEvent = _events[_currentIndex];
+    final hasThumbnail = currentEvent.sourceThumbnail != null && 
+        currentEvent.sourceThumbnail!.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 来源图片缩略图
+        if (hasThumbnail) ...[
+          _buildThumbnailSection(context, currentEvent.sourceThumbnail!, currentEvent.title),
+          const SizedBox(height: 20),
+        ],
+        
         // Title
         Text(
           '${l10n.eventTitle} *',

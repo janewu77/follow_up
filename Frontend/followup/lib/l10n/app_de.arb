@@ -251,5 +251,8 @@
   "aiAssistant": "KI-Assistent",
   "loadFailed": "Laden fehlgeschlagen",
   "retry": "Erneut versuchen",
-  "unableToGetUserInfo": "Benutzerinfo nicht verfügbar"
+  "unableToGetUserInfo": "Benutzerinfo nicht verfügbar",
+  "sourceTypeImage": "Bild",
+  "sourceTypeText": "Text",
+  "sourceImage": "Quellbild"
 }

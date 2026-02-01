@@ -1395,6 +1395,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to get user info'**
   String get unableToGetUserInfo;
+
+  /// No description provided for @sourceTypeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get sourceTypeImage;
+
+  /// No description provided for @sourceTypeText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get sourceTypeText;
+
+  /// No description provided for @sourceImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Source Image'**
+  String get sourceImage;
 }
 
 class _AppLocalizationsDelegate

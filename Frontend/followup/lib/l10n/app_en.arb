@@ -269,5 +269,8 @@
   "aiAssistant": "AI Assistant",
   "loadFailed": "Load failed",
   "retry": "Retry",
-  "unableToGetUserInfo": "Unable to get user info"
+  "unableToGetUserInfo": "Unable to get user info",
+  "sourceTypeImage": "Image",
+  "sourceTypeText": "Text",
+  "sourceImage": "Source Image"
 }

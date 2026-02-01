@@ -191,40 +191,6 @@ class EventCard extends StatelessWidget {
                     ),
                   ),
                   
-                  // 来源类型标签
-                  if (event.sourceType != null) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            event.sourceType == 'image'
-                                ? Icons.image_outlined
-                                : Icons.text_snippet_outlined,
-                            size: 12,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            event.sourceType == 'image' ? '图片' : '文本',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  
                   const Spacer(),
                   
                   // 操作按钮

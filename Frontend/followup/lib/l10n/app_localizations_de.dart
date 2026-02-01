@@ -697,4 +697,13 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get unableToGetUserInfo => 'Benutzerinfo nicht verfügbar';
+
+  @override
+  String get sourceTypeImage => 'Bild';
+
+  @override
+  String get sourceTypeText => 'Text';
+
+  @override
+  String get sourceImage => 'Quellbild';
 }

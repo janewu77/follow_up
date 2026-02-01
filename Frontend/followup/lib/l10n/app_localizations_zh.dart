@@ -664,4 +664,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get unableToGetUserInfo => '无法获取用户信息';
+
+  @override
+  String get sourceTypeImage => '图片';
+
+  @override
+  String get sourceTypeText => '文本';
+
+  @override
+  String get sourceImage => '来源图片';
 }

@@ -1185,11 +1185,11 @@ class _ChatBubble extends StatelessWidget {
                     const SizedBox(height: 12),
                     _buildIcsDownloadButton(context, message.actionResult!),
                   ],
-                  // Collapsible action_result display (for debugging/detail view)
-                  if (!isUser && message.actionResult != null) ...[
-                    const SizedBox(height: 8),
-                    _buildActionResultCollapsible(context, message.actionResult!),
-                  ],
+                  // Collapsible action_result display (hidden - for debugging only)
+                  // if (!isUser && message.actionResult != null) ...[
+                  //   const SizedBox(height: 8),
+                  //   _buildActionResultCollapsible(context, message.actionResult!),
+                  // ],
                 ],
               ),
             ),
