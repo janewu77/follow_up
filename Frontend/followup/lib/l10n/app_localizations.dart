@@ -1306,8 +1306,6 @@ abstract class AppLocalizations {
   /// **'My Events'**
   String get chatViewEvents;
 
-  // ============ Profile Page ============
-
   /// No description provided for @profile.
   ///
   /// In en, this message translates to:
@@ -1337,6 +1335,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quick Actions'**
   String get quickActions;
+
+  /// No description provided for @serverConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Server Connection'**
+  String get serverConnection;
+
+  /// No description provided for @connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get connected;
+
+  /// No description provided for @disconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get disconnected;
+
+  /// No description provided for @testing.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing...'**
+  String get testing;
+
+  /// No description provided for @unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
 
   /// No description provided for @myEvents.
   ///

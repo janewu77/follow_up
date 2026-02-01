@@ -63,6 +63,19 @@ class ApiService {
     }
   }
 
+  // 健康检查 - 测试后端连接
+  static Future<bool> healthCheck() async {
+    try {
+      final response = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/api/health"),
+      ).timeout(const Duration(seconds: 5));
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // 解析日程
   // 支持单张图片 (imageBase64) 或多张图片 (imagesBase64)
   static Future<ParseResponse> parseEvent({

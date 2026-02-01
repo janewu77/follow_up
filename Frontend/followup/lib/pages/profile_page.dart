@@ -19,11 +19,16 @@ class _ProfilePageState extends State<ProfilePage> {
   User? _userDetails;
   bool _isLoading = true;
   String? _error;
+  
+  // Connection status
+  bool? _isConnected;
+  bool _isTestingConnection = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserDetails();
+    _testConnection();
   }
 
   Future<void> _loadUserDetails() async {
@@ -44,6 +49,19 @@ class _ProfilePageState extends State<ProfilePage> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _testConnection() async {
+    setState(() {
+      _isTestingConnection = true;
+    });
+
+    final isConnected = await ApiService.healthCheck();
+    
+    setState(() {
+      _isConnected = isConnected;
+      _isTestingConnection = false;
+    });
   }
 
   void _logout() {
@@ -201,6 +219,9 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 24),
           // Actions
           _buildActionsSection(l10n),
+          const SizedBox(height: 24),
+          // Connection Status
+          _buildConnectionSection(l10n),
           const SizedBox(height: 48),
           // Logout Button
           _buildLogoutButton(l10n),
@@ -396,6 +417,112 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Widget _buildConnectionSection(AppLocalizations l10n) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            // Status icon
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _isConnected == true
+                    ? AppColors.success.withValues(alpha: 0.1)
+                    : _isConnected == false
+                        ? AppColors.error.withValues(alpha: 0.1)
+                        : AppColors.textMuted.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _isConnected == true
+                    ? Icons.wifi
+                    : _isConnected == false
+                        ? Icons.wifi_off
+                        : Icons.sync,
+                size: 20,
+                color: _isConnected == true
+                    ? AppColors.success
+                    : _isConnected == false
+                        ? AppColors.error
+                        : AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Status text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.serverConnection,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _isTestingConnection
+                        ? l10n.testing
+                        : _isConnected == true
+                            ? l10n.connected
+                            : _isConnected == false
+                                ? l10n.disconnected
+                                : l10n.unknown,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: _isConnected == true
+                          ? AppColors.success
+                          : _isConnected == false
+                              ? AppColors.error
+                              : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Reload button
+            IconButton(
+              onPressed: _isTestingConnection ? null : _testConnection,
+              icon: _isTestingConnection
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : Icon(
+                      Icons.sync,
+                      color: _isConnected == true
+                          ? AppColors.success
+                          : AppColors.primary,
+                    ),
+              style: IconButton.styleFrom(
+                backgroundColor: _isConnected == true
+                    ? AppColors.success.withValues(alpha: 0.1)
+                    : AppColors.primary.withValues(alpha: 0.1),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionsSection(AppLocalizations l10n) {
     return Container(
       decoration: BoxDecoration(
@@ -408,12 +535,12 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: Text(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
               l10n.quickActions,
               style: const TextStyle(
                 fontSize: 13,
@@ -422,67 +549,60 @@ class _ProfilePageState extends State<ProfilePage> {
                 letterSpacing: 0.5,
               ),
             ),
-          ),
-          _buildActionItem(
-            icon: Icons.event_outlined,
-            label: l10n.myEvents,
-            onTap: () => Navigator.pushNamed(context, '/events'),
-          ),
-          _buildDivider(),
-          _buildActionItem(
-            icon: Icons.chat_outlined,
-            label: l10n.aiAssistant,
-            onTap: () => Navigator.pushNamed(context, '/chat'),
-          ),
-          const SizedBox(height: 8),
-        ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildQuickActionButton(
+                  icon: Icons.event_outlined,
+                  label: l10n.myEvents,
+                  onTap: () => Navigator.pushNamed(context, '/events'),
+                ),
+                _buildQuickActionButton(
+                  icon: Icons.chat_outlined,
+                  label: l10n.aiAssistant,
+                  onTap: () => Navigator.pushNamed(context, '/chat'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildActionItem({
+  Widget _buildQuickActionButton({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: AppColors.accent,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: AppColors.textMuted,
-              ),
-            ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              icon,
+              size: 24,
+              color: AppColors.accent,
+            ),
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -653,8 +653,6 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get chatViewEvents => 'Meine Termine';
 
-  // ============ Profile Page ============
-
   @override
   String get profile => 'Profil';
 
@@ -669,6 +667,21 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get quickActions => 'Schnellaktionen';
+
+  @override
+  String get serverConnection => 'Serververbindung';
+
+  @override
+  String get connected => 'Verbunden';
+
+  @override
+  String get disconnected => 'Nicht verbunden';
+
+  @override
+  String get testing => 'Testen...';
+
+  @override
+  String get unknown => 'Unbekannt';
 
   @override
   String get myEvents => 'Meine Termine';

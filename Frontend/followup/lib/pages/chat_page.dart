@@ -4,10 +4,15 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:universal_html/html.dart' as html;
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../models/event.dart';
 import '../providers/auth_provider.dart';
 import '../services/chat_service.dart';
 
@@ -24,9 +29,12 @@ class _ChatPageState extends State<ChatPage> {
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
   final ImagePicker _imagePicker = ImagePicker();
+  final FocusNode _sendButtonFocusNode = FocusNode();
   bool _isTyping = false;
   String _currentResponse = '';
   String? _currentIntent;
+  String? _currentThinkingMessage;  // Thinking/status message to display
+  Map<String, dynamic>? _currentActionResult;
   StreamSubscription<ChatEvent>? _streamSubscription;
   
   // Selected images for sending
@@ -64,6 +72,7 @@ class _ChatPageState extends State<ChatPage> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _sendButtonFocusNode.dispose();
     _streamSubscription?.cancel();
     super.dispose();
   }
@@ -238,6 +247,8 @@ class _ChatPageState extends State<ChatPage> {
       _isTyping = true;
       _currentResponse = '';
       _currentIntent = null;
+      _currentActionResult = null;
+      _currentThinkingMessage = null;
     });
 
     _scrollToBottom();
@@ -269,21 +280,37 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _handleChatEvent(ChatEvent event) {
+    debugPrint('ChatEvent received: type=${event.type}, message=${event.message}');
     setState(() {
       switch (event.type) {
         case ChatEventType.status:
-          // Could show status in UI if needed
+          // Show status message to user
+          debugPrint('Status: ${event.message}');
+          _currentThinkingMessage = event.message;
+          break;
+        case ChatEventType.thinking:
+          // Show thinking message with emoji
+          debugPrint('Thinking: ${event.message}');
+          _currentThinkingMessage = '💭 ${event.message ?? 'Thinking...'}';
           break;
         case ChatEventType.intent:
           _currentIntent = event.intent;
           break;
         case ChatEventType.token:
+          _currentThinkingMessage = null;  // Clear thinking when receiving tokens
           _currentResponse += event.token ?? '';
+          _scrollToBottom();
+          break;
+        case ChatEventType.content:
+          // One-time complete content (non-streaming)
+          _currentThinkingMessage = null;  // Clear thinking when receiving content
+          _currentResponse = event.content ?? event.message ?? '';
           _scrollToBottom();
           break;
         case ChatEventType.action:
           // Handle action result (e.g., created events)
           if (event.actionResult != null) {
+            _currentActionResult = event.actionResult;
             _handleActionResult(event.actionResult!);
           }
           break;
@@ -304,16 +331,24 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _handleActionResult(Map<String, dynamic> actionResult) {
-    // If events were created, show them
-    if (actionResult.containsKey('events')) {
-      final events = actionResult['events'] as List<dynamic>;
-      final eventCount = events.length;
+    final action = actionResult['action'] as String?;
+    
+    // Refresh events list when events are modified
+    if (action == 'create_event' || action == 'update_event' || action == 'delete_event') {
+      // Check if operation was successful (has event_id or event_ids)
+      final hasEventId = actionResult.containsKey('event_id') || actionResult.containsKey('event_ids');
+      final hasError = actionResult.containsKey('error');
+      final needMoreInfo = actionResult['need_more_info'] == true;
       
-      if (eventCount > 0) {
-        // The response message will include event details
-        // Could add special UI for events here
+      if (hasEventId && !hasError && !needMoreInfo) {
+        // Trigger events refresh in background
+        // Note: EventsProvider will be refreshed when user navigates to events page
+        debugPrint('Action completed: $action');
       }
     }
+    
+    // Log for debugging
+    debugPrint('Action result: $actionResult');
   }
 
   void _finishResponse() {
@@ -324,14 +359,18 @@ class _ChatPageState extends State<ChatPage> {
           isUser: false,
           timestamp: DateTime.now(),
           intent: _currentIntent,
+          actionResult: _currentActionResult,
         ));
         _currentResponse = '';
         _currentIntent = null;
+        _currentActionResult = null;
+        _currentThinkingMessage = null;
         _isTyping = false;
       });
       _scrollToBottom();
     } else {
       setState(() {
+        _currentThinkingMessage = null;
         _isTyping = false;
       });
     }
@@ -550,6 +589,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildTypingArea() {
+    debugPrint('Building typing area: thinking=$_currentThinkingMessage, response=${_currentResponse.length} chars');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       alignment: Alignment.centerLeft,
@@ -576,25 +616,74 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ],
               ),
-              child: _currentResponse.isEmpty
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _TypingDot(delay: 0),
-                        const SizedBox(width: 4),
-                        _TypingDot(delay: 150),
-                        const SizedBox(width: 4),
-                        _TypingDot(delay: 300),
-                      ],
-                    )
-                  : SelectableText(
-                      _currentResponse,
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        height: 1.5,
+              child: _currentResponse.isNotEmpty
+                  ? MarkdownBody(
+                      data: _currentResponse,
+                      selectable: true,
+                      styleSheet: MarkdownStyleSheet(
+                        p: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 15,
+                          height: 1.5,
+                        ),
+                        strong: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        em: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 15,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        listBullet: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 15,
+                        ),
+                        code: TextStyle(
+                          color: AppColors.primary,
+                          backgroundColor: AppColors.surface,
+                          fontSize: 14,
+                        ),
+                        codeblockDecoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                    ),
+                    )
+                  : _currentThinkingMessage != null
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _currentThinkingMessage!,
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _TypingDot(delay: 0),
+                            const SizedBox(width: 4),
+                            _TypingDot(delay: 150),
+                            const SizedBox(width: 4),
+                            _TypingDot(delay: 300),
+                          ],
+                        ),
             ),
           ),
         ],
@@ -715,30 +804,60 @@ class _ChatPageState extends State<ChatPage> {
                           ),
                         ),
                         const Spacer(),
-                        // Send button (arrow up)
+                        // Send button (arrow up) - focusable with Tab key
                         Builder(
                           builder: (context) {
                             final bool canSend = !_isTyping && 
                                 (_messageController.text.trim().isNotEmpty || _selectedImages.isNotEmpty);
-                            return GestureDetector(
-                              onTap: canSend ? _sendMessage : null,
-                              child: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  // Disabled state: green with gray overlay (shows it's a green button but disabled)
-                                  color: canSend 
-                                      ? AppColors.primary
-                                      : AppColors.primary.withValues(alpha: 0.4),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.arrow_upward_rounded,
-                                  color: canSend 
-                                      ? Colors.white 
-                                      : Colors.white.withValues(alpha: 0.7),
-                                  size: 20,
-                                ),
+                            return Focus(
+                              focusNode: _sendButtonFocusNode,
+                              child: Builder(
+                                builder: (context) {
+                                  final isFocused = Focus.of(context).hasFocus;
+                                  return GestureDetector(
+                                    onTap: canSend ? _sendMessage : null,
+                                    child: KeyboardListener(
+                                      focusNode: FocusNode(skipTraversal: true),
+                                      onKeyEvent: (event) {
+                                        // Handle Enter/Space when focused
+                                        if (canSend && 
+                                            event is KeyDownEvent &&
+                                            (event.logicalKey.keyLabel == 'Enter' || 
+                                             event.logicalKey.keyLabel == ' ')) {
+                                          _sendMessage();
+                                        }
+                                      },
+                                      child: Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: canSend 
+                                              ? AppColors.primary
+                                              : AppColors.primary.withValues(alpha: 0.4),
+                                          borderRadius: BorderRadius.circular(10),
+                                          // Show focus ring when focused
+                                          border: isFocused 
+                                              ? Border.all(color: AppColors.accent, width: 2)
+                                              : null,
+                                          boxShadow: isFocused
+                                              ? [BoxShadow(
+                                                  color: AppColors.accent.withValues(alpha: 0.3),
+                                                  blurRadius: 4,
+                                                  spreadRadius: 1,
+                                                )]
+                                              : null,
+                                        ),
+                                        child: Icon(
+                                          Icons.arrow_upward_rounded,
+                                          color: canSend 
+                                              ? Colors.white 
+                                              : Colors.white.withValues(alpha: 0.7),
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             );
                           },
@@ -859,6 +978,7 @@ class ChatMessage {
   final String? intent;
   final bool isError;
   final List<XFile>? images;
+  final Map<String, dynamic>? actionResult;
 
   ChatMessage({
     required this.content,
@@ -867,6 +987,7 @@ class ChatMessage {
     this.intent,
     this.isError = false,
     this.images,
+    this.actionResult,
   });
 }
 
@@ -1008,18 +1129,67 @@ class _ChatBubble extends StatelessWidget {
                   ],
                   // Display text content (hide auto-generated image message)
                   if (!message.content.startsWith('📷'))
-                    SelectableText(
-                      message.content,
-                      style: TextStyle(
-                        color: isUser 
-                            ? Colors.white 
-                            : message.isError 
-                                ? AppColors.error 
-                                : AppColors.textPrimary,
-                        fontSize: 15,
-                        height: 1.5,
-                      ),
-                    ),
+                    isUser
+                        ? SelectableText(
+                            message.content,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              height: 1.5,
+                            ),
+                          )
+                        : MarkdownBody(
+                            data: message.content,
+                            selectable: true,
+                            styleSheet: MarkdownStyleSheet(
+                              p: TextStyle(
+                                color: message.isError 
+                                    ? AppColors.error 
+                                    : AppColors.textPrimary,
+                                fontSize: 15,
+                                height: 1.5,
+                              ),
+                              strong: TextStyle(
+                                color: message.isError 
+                                    ? AppColors.error 
+                                    : AppColors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              em: TextStyle(
+                                color: message.isError 
+                                    ? AppColors.error 
+                                    : AppColors.textPrimary,
+                                fontSize: 15,
+                                fontStyle: FontStyle.italic,
+                              ),
+                              listBullet: TextStyle(
+                                color: message.isError 
+                                    ? AppColors.error 
+                                    : AppColors.textPrimary,
+                                fontSize: 15,
+                              ),
+                              code: TextStyle(
+                                color: AppColors.primary,
+                                backgroundColor: AppColors.surface,
+                                fontSize: 14,
+                              ),
+                              codeblockDecoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                  // ICS Download button when event is created
+                  if (!isUser && _hasIcsContent(message.actionResult)) ...[
+                    const SizedBox(height: 12),
+                    _buildIcsDownloadButton(context, message.actionResult!),
+                  ],
+                  // Collapsible action_result display (for debugging/detail view)
+                  if (!isUser && message.actionResult != null) ...[
+                    const SizedBox(height: 8),
+                    _buildActionResultCollapsible(context, message.actionResult!),
+                  ],
                 ],
               ),
             ),
@@ -1035,6 +1205,311 @@ class _ChatBubble extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Check if actionResult contains ICS content
+  bool _hasIcsContent(Map<String, dynamic>? actionResult) {
+    if (actionResult == null) return false;
+    // Check for single event ICS
+    if (actionResult['ics_content'] != null) return true;
+    // Check for multiple events with ICS
+    final events = actionResult['events'] as List<dynamic>?;
+    if (events != null && events.isNotEmpty) {
+      return events.any((e) => e['ics_content'] != null);
+    }
+    return false;
+  }
+
+  /// Build action buttons (ICS download + View Event)
+  Widget _buildIcsDownloadButton(BuildContext context, Map<String, dynamic> actionResult) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        // Add to Calendar button
+        _buildActionButton(
+          context: context,
+          icon: Icons.calendar_today_outlined,
+          label: 'Add to Calendar',
+          onTap: () => _downloadIcs(context, actionResult),
+        ),
+        // View Event Detail button
+        _buildActionButton(
+          context: context,
+          icon: Icons.visibility_outlined,
+          label: 'View Detail',
+          onTap: () => _viewEventDetail(context, actionResult),
+          isSecondary: true,
+        ),
+      ],
+    );
+  }
+
+  /// Build collapsible action_result display
+  Widget _buildActionResultCollapsible(BuildContext context, Map<String, dynamic> actionResult) {
+    // Format action_result for display
+    final action = actionResult['action'] as String? ?? 'unknown';
+    final hasError = actionResult.containsKey('error');
+    final needMoreInfo = actionResult['need_more_info'] == true;
+    
+    // Determine status icon and color
+    IconData statusIcon;
+    Color statusColor;
+    if (hasError) {
+      statusIcon = Icons.error_outline;
+      statusColor = AppColors.error;
+    } else if (needMoreInfo) {
+      statusIcon = Icons.help_outline;
+      statusColor = Colors.orange;
+    } else {
+      statusIcon = Icons.check_circle_outline;
+      statusColor = Colors.green;
+    }
+
+    // Build summary text
+    String summary = _getActionSummary(action, actionResult);
+
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(top: 8),
+        leading: Icon(statusIcon, color: statusColor, size: 18),
+        title: Text(
+          summary,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        trailing: const Icon(Icons.expand_more, size: 18),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+            ),
+            child: SelectableText(
+              _formatJsonForDisplay(actionResult),
+              style: TextStyle(
+                fontSize: 11,
+                fontFamily: 'monospace',
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Get human-readable action summary
+  String _getActionSummary(String action, Map<String, dynamic> actionResult) {
+    switch (action) {
+      case 'create_event':
+        final eventId = actionResult['event_id'];
+        return eventId != null ? 'Created event #$eventId' : 'Create event';
+      case 'update_event':
+        final eventId = actionResult['event_id'];
+        return eventId != null ? 'Updated event #$eventId' : 'Update event';
+      case 'delete_event':
+        final eventIds = actionResult['event_ids'];
+        return eventIds != null ? 'Deleted ${(eventIds as List).length} event(s)' : 'Delete event';
+      case 'query_event':
+        final events = actionResult['events'] as List?;
+        return events != null ? 'Found ${events.length} event(s)' : 'Query events';
+      case 'general_conversation':
+        return 'General chat';
+      default:
+        return action.replaceAll('_', ' ').toUpperCase();
+    }
+  }
+
+  /// Format JSON for display with proper indentation
+  String _formatJsonForDisplay(Map<String, dynamic> data) {
+    // Create a cleaned copy without large base64 content
+    final cleaned = _cleanForDisplay(data);
+    const encoder = JsonEncoder.withIndent('  ');
+    return encoder.convert(cleaned);
+  }
+
+  /// Clean data for display (truncate large values)
+  Map<String, dynamic> _cleanForDisplay(Map<String, dynamic> data) {
+    final result = <String, dynamic>{};
+    for (final entry in data.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      
+      if (value is String && value.length > 100) {
+        // Truncate long strings (like base64)
+        result[key] = '${value.substring(0, 50)}... (${value.length} chars)';
+      } else if (value is Map<String, dynamic>) {
+        result[key] = _cleanForDisplay(value);
+      } else if (value is List) {
+        result[key] = value.map((e) {
+          if (e is Map<String, dynamic>) {
+            return _cleanForDisplay(e);
+          } else if (e is String && e.length > 100) {
+            return '${e.substring(0, 50)}... (${e.length} chars)';
+          }
+          return e;
+        }).toList();
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+
+  /// Navigate to event detail page
+  void _viewEventDetail(BuildContext context, Map<String, dynamic> actionResult) {
+    EventData? eventData;
+
+    // Try to get event from actionResult
+    if (actionResult['event_id'] != null) {
+      // Single event created
+      eventData = EventData(
+        id: actionResult['event_id'] as int,
+        title: actionResult['event_title'] as String? ?? 'Event',
+        startTime: DateTime.now(), // Will be loaded from server
+      );
+    } else if (actionResult['events'] != null) {
+      // Multiple events - get first one
+      final events = actionResult['events'] as List<dynamic>;
+      if (events.isNotEmpty) {
+        final firstEvent = events.first as Map<String, dynamic>;
+        eventData = EventData(
+          id: firstEvent['id'] as int?,
+          title: firstEvent['title'] as String? ?? 'Event',
+          startTime: firstEvent['start_time'] != null
+              ? DateTime.parse(firstEvent['start_time'] as String)
+              : DateTime.now(),
+          endTime: firstEvent['end_time'] != null
+              ? DateTime.parse(firstEvent['end_time'] as String)
+              : null,
+          location: firstEvent['location'] as String?,
+        );
+      }
+    }
+
+    if (eventData != null) {
+      Navigator.pushNamed(
+        context,
+        '/preview',
+        arguments: {'event': eventData, 'isEditing': true},
+      );
+    } else {
+      // Fallback to events list
+      Navigator.pushNamed(context, '/events');
+    }
+  }
+
+  /// Build a single action button
+  Widget _buildActionButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isSecondary = false,
+  }) {
+    final color = isSecondary ? AppColors.textSecondary : AppColors.primary;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: color.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: color,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Download ICS file
+  Future<void> _downloadIcs(BuildContext context, Map<String, dynamic> actionResult) async {
+    try {
+      String? icsBase64;
+      String title = 'event';
+
+      // Get ICS content from single event or first event in list
+      if (actionResult['ics_content'] != null) {
+        icsBase64 = actionResult['ics_content'] as String;
+        title = actionResult['event_title'] as String? ?? 'event';
+      } else {
+        final events = actionResult['events'] as List<dynamic>?;
+        if (events != null && events.isNotEmpty) {
+          final firstEvent = events.first as Map<String, dynamic>;
+          icsBase64 = firstEvent['ics_content'] as String?;
+          title = firstEvent['title'] as String? ?? 'event';
+        }
+      }
+
+      if (icsBase64 == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No calendar file available')),
+        );
+        return;
+      }
+
+      final icsBytes = base64Decode(icsBase64);
+      final filename = '${title.replaceAll(RegExp(r'[^\w\s]'), '')}.ics';
+
+      if (kIsWeb) {
+        // Web platform download
+        final blob = html.Blob([icsBytes], 'text/calendar');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', filename)
+          ..click();
+        html.Url.revokeObjectUrl(url);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Calendar file downloaded')),
+        );
+      } else {
+        // Mobile platform save file
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/$filename');
+        await file.writeAsBytes(icsBytes);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Saved to ${file.path}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Download failed: $e')),
+      );
+    }
   }
 
   /// Build images grid in message bubble

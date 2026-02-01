@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/event.dart';
 import '../utils/date_formatter.dart';
@@ -27,6 +28,8 @@ class EventCard extends StatelessWidget {
     final countdown = DateFormatter.getCountdown(event.startTime);
     final isUpcoming = !event.startTime.isBefore(DateTime.now());
 
+    final hasThumbnail = event.sourceThumbnail != null && event.sourceThumbnail!.isNotEmpty;
+
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -38,34 +41,69 @@ class EventCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 标题和关注按钮
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      event.title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+              // Thumbnail (clickable to enlarge)
+              if (hasThumbnail) ...[
+                GestureDetector(
+                  onTap: () => _showThumbnailModal(context, event.sourceThumbnail!, event.title),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.memory(
+                      base64Decode(event.sourceThumbnail!),
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        );
+                      },
                     ),
                   ),
-                  if (showActions && onToggleFollow != null)
-                    IconButton(
-                      icon: Icon(
-                        event.isFollowed ? Icons.star : Icons.star_border,
-                        color: event.isFollowed ? Colors.amber : Colors.grey,
-                      ),
-                      onPressed: onToggleFollow,
-                      tooltip: event.isFollowed ? '取消关注' : '关注',
-                      visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(width: 12),
+              ],
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 标题和关注按钮
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            event.title,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (showActions && onToggleFollow != null)
+                          IconButton(
+                            icon: Icon(
+                              event.isFollowed ? Icons.star : Icons.star_border,
+                              color: event.isFollowed ? Colors.amber : Colors.grey,
+                            ),
+                            onPressed: onToggleFollow,
+                            tooltip: event.isFollowed ? '取消关注' : '关注',
+                            visualDensity: VisualDensity.compact,
+                          ),
+                      ],
                     ),
-                ],
-              ),
-              const SizedBox(height: 8),
+                    const SizedBox(height: 8),
               
               // 日期时间
               Row(
@@ -209,11 +247,102 @@ class EventCard extends StatelessWidget {
                         tooltip: '删除',
                         visualDensity: VisualDensity.compact,
                       ),
+                    ],
                   ],
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
+        ],
+      ),
+        ),
+      ),
+    );
+  }
+
+  /// Show thumbnail in a modal dialog
+  void _showThumbnailModal(BuildContext context, String base64Image, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Dismiss on tap outside
+            GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(color: Colors.transparent),
+            ),
+            // Image container
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Image
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.9,
+                      maxHeight: MediaQuery.of(context).size.height * 0.7,
+                    ),
+                    child: Image.memory(
+                      base64Decode(base64Image),
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 200,
+                          height: 200,
+                          color: Colors.grey[800],
+                          child: const Center(
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              color: Colors.white54,
+                              size: 48,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
