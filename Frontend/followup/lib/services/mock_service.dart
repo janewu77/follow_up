@@ -3,22 +3,36 @@ import '../models/event.dart';
 
 // Mock 服务（开发用）
 class MockService {
+  // 当前登录用户（Mock）
+  static User? _currentUser;
+
+  // 模拟获取当前用户
+  static Future<User> getCurrentUser() async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (_currentUser == null) {
+      throw Exception("未登录");
+    }
+    return _currentUser!;
+  }
+
   // 模拟登录
   static Future<LoginResponse> login(String username, String password) async {
     await Future.delayed(const Duration(milliseconds: 500));
 
     if (username == "alice" && password == "alice123") {
+      _currentUser = User(id: 1, username: "alice");
       return LoginResponse(
         accessToken: "mock_token_12345",
         tokenType: "bearer",
-        user: User(id: 1, username: "alice"),
+        user: _currentUser!,
       );
     }
     if (username == "demo" && password == "demo123") {
+      _currentUser = User(id: 2, username: "demo");
       return LoginResponse(
         accessToken: "mock_token_demo",
         tokenType: "bearer",
-        user: User(id: 2, username: "demo"),
+        user: _currentUser!,
       );
     }
     throw Exception("用户名或密码错误");
@@ -72,7 +86,54 @@ class MockService {
   // 模拟获取活动列表
   static Future<List<EventData>> getEvents({bool followedOnly = false}) async {
     await Future.delayed(const Duration(milliseconds: 300));
+    return _getMockEvents(followedOnly: followedOnly);
+  }
 
+  // 模拟获取单个活动
+  static Future<EventData> getEvent(int id) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    final events = _getMockEvents();
+    return events.firstWhere(
+      (e) => e.id == id,
+      orElse: () => throw Exception("活动不存在"),
+    );
+  }
+
+  // 模拟搜索活动
+  static Future<List<EventData>> searchEvents(String query, {int limit = 10}) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final events = _getMockEvents();
+    final lowerQuery = query.toLowerCase();
+    return events
+        .where((e) =>
+            e.title.toLowerCase().contains(lowerQuery) ||
+            (e.description?.toLowerCase().contains(lowerQuery) ?? false) ||
+            (e.location?.toLowerCase().contains(lowerQuery) ?? false))
+        .take(limit)
+        .toList();
+  }
+
+  // 模拟查找重复活动
+  static Future<DuplicatesResponse> getDuplicates() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    // Mock 返回空结果
+    return DuplicatesResponse(
+      totalDuplicates: 0,
+      groups: [],
+    );
+  }
+
+  // 模拟批量删除重复活动
+  static Future<DeleteDuplicatesResponse> deleteDuplicates(List<int> eventIds) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    return DeleteDuplicatesResponse(
+      deletedCount: eventIds.length,
+      deletedIds: eventIds,
+    );
+  }
+
+  // Mock 活动数据
+  static List<EventData> _getMockEvents({bool followedOnly = false}) {
     final allEvents = [
       EventData(
         id: 1,
@@ -128,6 +189,29 @@ class MockService {
     
     return event.copyWith(
       id: DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  // 模拟更新活动
+  static Future<EventData> updateEvent(int id, {
+    String? title,
+    DateTime? startTime,
+    DateTime? endTime,
+    String? location,
+    String? description,
+    bool? isFollowed,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    
+    final events = await getEvents();
+    final event = events.firstWhere((e) => e.id == id);
+    return event.copyWith(
+      title: title ?? event.title,
+      startTime: startTime ?? event.startTime,
+      endTime: endTime ?? event.endTime,
+      location: location ?? event.location,
+      description: description ?? event.description,
+      isFollowed: isFollowed ?? event.isFollowed,
     );
   }
 

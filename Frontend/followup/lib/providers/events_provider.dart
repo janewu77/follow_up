@@ -76,15 +76,34 @@ class EventsProvider extends ChangeNotifier {
     }
   }
 
-  // 保存活动
+  // 保存活动（创建或更新）
   Future<bool> saveEvent(EventData event) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final savedEvent = await ApiService.createEvent(event);
-      _events.add(savedEvent);
+      if (event.id != null) {
+        // 更新现有活动
+        final updatedEvent = await ApiService.updateEvent(
+          event.id!,
+          title: event.title,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          location: event.location,
+          description: event.description,
+          isFollowed: event.isFollowed,
+        );
+        // 更新本地列表
+        final index = _events.indexWhere((e) => e.id == event.id);
+        if (index != -1) {
+          _events[index] = updatedEvent;
+        }
+      } else {
+        // 创建新活动
+        final savedEvent = await ApiService.createEvent(event);
+        _events.add(savedEvent);
+      }
       _isLoading = false;
       notifyListeners();
       return true;

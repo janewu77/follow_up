@@ -127,6 +127,11 @@ async def chat(
                     elif chunk["type"] == "action":
                         action_result = chunk["action_result"]
                         yield f"data: {json.dumps({'type': 'action', 'action_result': action_result}, ensure_ascii=False)}\n\n"
+                    elif chunk["type"] == "status":
+                        # Progress status (e.g., search progress) - only show when searching
+                        status_msg = chunk.get("message", "")
+                        if status_msg:
+                            yield f"data: {json.dumps({'type': 'status', 'message': status_msg}, ensure_ascii=False)}\n\n"
                     elif chunk["type"] == "done":
                         # Save full response to memory
                         if full_response:

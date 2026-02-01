@@ -12,6 +12,7 @@ import 'pages/chat_page.dart';
 import 'pages/input_page.dart';
 import 'pages/preview_page.dart';
 import 'pages/events_page.dart';
+import 'pages/profile_page.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -83,6 +84,10 @@ class FollowUpApp extends StatelessWidget {
             case '/events':
               return MaterialPageRoute(
                 builder: (_) => const EventsPage(),
+              );
+            case '/profile':
+              return MaterialPageRoute(
+                builder: (_) => const ProfilePage(),
               );
             default:
               return MaterialPageRoute(

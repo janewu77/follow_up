@@ -1,14 +1,16 @@
 """
-LLM Service - 使用 LangChain + OpenAI 进行日程解析
+LLM Service - Event parsing using LangChain + OpenAI
 
-职责：
-- 初始化和管理 LLM 实例
-- 调用 LLM API 解析文本和图像
-- 将 LLM 响应转换为业务模型
-- 支持信息不完整时反问用户
+Responsibilities:
+- Initialize and manage LLM instances
+- Call LLM API to parse text and images
+- Convert LLM responses to business models
+- Ask user when information is incomplete
+- Complete incomplete information via web search
 """
 import os
 import time
+import asyncio
 from typing import List, Optional, NamedTuple
 from datetime import datetime
 
@@ -29,10 +31,13 @@ logger = get_logger(__name__)
 
 
 class ParseResult(NamedTuple):
-    """解析结果，包含事件列表和可能的澄清问题"""
+    """Parse result containing event list and possible clarification questions"""
     events: List[ParsedEvent]
     needs_clarification: bool = False
     clarification_question: Optional[str] = None
+    # Additional fields for incomplete events that may need search
+    search_keywords: Optional[List[str]] = None
+    partial_events: Optional[List[dict]] = None  # Events with title but no time
 
 
 # ============================================================================
@@ -41,23 +46,23 @@ class ParseResult(NamedTuple):
 
 def get_llm() -> ChatOpenAI:
     """
-    获取 OpenAI LLM 实例
-    
+    Get OpenAI LLM instance
+
     Returns:
-        配置好的 ChatOpenAI 实例
-        
+        Configured ChatOpenAI instance
+
     Raises:
-        ValueError: 如果 API Key 未配置
+        ValueError: If API Key is not configured
     """
     api_key = settings.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY")
     if not api_key:
         logger.error("OPENAI_API_KEY is not configured")
         raise ValueError("OPENAI_API_KEY is not configured. Set it in .env file or environment variable.")
-    
+
     logger.debug(f"Initializing LLM: model={settings.OPENAI_MODEL}, temperature=0.3")
     return ChatOpenAI(
         model=settings.OPENAI_MODEL,
-        temperature=0.3,  # 降低温度以获得更一致的结果
+        temperature=0.3,  # Lower temperature for more consistent results
         api_key=api_key,
     )
 
@@ -71,48 +76,98 @@ def parse_text_with_llm(
     additional_note: Optional[str] = None,
 ) -> ParseResult:
     """
-    使用 LangChain + OpenAI 解析文字中的日程信息
-    
+    Parse event information from text using LangChain + OpenAI
+
     Args:
-        text: 输入文字
-        additional_note: 补充说明（可包含用户对澄清问题的回答）
-        
+        text: Input text
+        additional_note: Additional note (may contain user's answer to clarification question)
+
     Returns:
-        ParseResult: 包含事件列表和可能的澄清问题
+        ParseResult: Contains event list and possible clarification questions
     """
     start_time = time.time()
     logger.debug(f"Starting LLM text parsing (text_length={len(text)})")
-    
+
     try:
         llm = get_llm()
         parser = JsonOutputParser(pydantic_object=EventExtractionList)
-        
-        # 构建 prompt
+
+        # Build prompt
         current_time = datetime.now().isoformat()
-        
+
         logger.debug(f"Calling LLM API (model={settings.OPENAI_MODEL})")
-        
-        # 调用 LLM
+
+        # Call LLM
         chain = TEXT_PARSE_PROMPT | llm | parser
         result = chain.invoke({
             "current_time": current_time,
             "text": text,
             "additional_note": additional_note or "",
         })
-        
+
         elapsed = time.time() - start_time
         logger.info(f"LLM API call completed in {elapsed:.2f}s")
-        
-        # 检查是否需要澄清
+
+        # Check if clarification is needed
         needs_clarification = result.get("needs_clarification", False)
         clarification_question = result.get("clarification_question")
-        
+
         if needs_clarification:
             logger.info(f"LLM requests clarification: {clarification_question}")
         
-        # 转换为 ParsedEvent
-        events = _convert_to_parsed_events(result, source_type="text")
+        # NEW: If incomplete and web search enabled, try to complete
+        if needs_clarification and settings.ENABLE_WEB_SEARCH:
+            search_keywords = result.get("search_keywords", [])
+            if search_keywords:
+                logger.info(f"Attempting web search with keywords: {search_keywords}")
+                
+                try:
+                    from services.search_service import (
+                        search_event_info,
+                        extract_event_details_from_search,
+                        merge_event_info,
+                        is_event_complete,
+                    )
+                    
+                    # Extract location hint from first event if available
+                    location_hint = None
+                    if result.get("events") and len(result["events"]) > 0:
+                        location_hint = result["events"][0].get("location")
+                    
+                    # Search web (run async in sync context)
+                    search_results = asyncio.run(search_event_info(
+                        query=" ".join(search_keywords),
+                        location_hint=location_hint or result.get("location_hint"),
+                        date_hint=result.get("date_hint"),
+                    ))
+                    
+                    if search_results:
+                        # Extract details from search results
+                        first_event = result.get("events", [{}])[0] if result.get("events") else {}
+                        completed_info = asyncio.run(extract_event_details_from_search(
+                            search_results,
+                            partial_event={
+                                "title": first_event.get("title", ""),
+                                "date_hint": result.get("date_hint"),
+                                "location_hint": first_event.get("location", ""),
+                            },
+                        ))
+                        
+                        if completed_info:
+                            # Merge with original result
+                            result = merge_event_info(result, completed_info)
+                            
+                            # Re-check if still needs clarification
+                            if is_event_complete(result):
+                                needs_clarification = False
+                                clarification_question = None
+                                logger.info("Web search successfully completed event info")
+                except Exception as e:
+                    logger.warning(f"Web search failed, falling back to clarification: {e}")
         
+        # Convert to ParsedEvent
+        events = _convert_to_parsed_events(result, source_type="text")
+
         logger.info(f"LLM text parsing completed: {len(events)} event(s) extracted, needs_clarification={needs_clarification}")
         return ParseResult(
             events=events,
@@ -135,27 +190,27 @@ def parse_image_with_llm(
     additional_note: Optional[str] = None,
 ) -> ParseResult:
     """
-    使用 LangChain + OpenAI Vision 解析图片中的日程信息
-    
+    Parse event information from image using LangChain + OpenAI Vision
+
     Args:
-        image_base64: Base64 编码的图片
-        additional_note: 补充说明（可包含用户对澄清问题的回答）
-        
+        image_base64: Base64 encoded image
+        additional_note: Additional note (may contain user's answer to clarification question)
+
     Returns:
-        ParseResult: 包含事件列表和可能的澄清问题
+        ParseResult: Contains event list and possible clarification questions
     """
     start_time = time.time()
     logger.debug(f"Starting LLM image parsing (base64_length={len(image_base64)})")
-    
+
     try:
         llm = get_llm()
         parser = JsonOutputParser(pydantic_object=EventExtractionList)
-        
-        # 构建系统消息
+
+        # Build system message
         current_time = datetime.now().isoformat()
         system_message = IMAGE_PARSE_SYSTEM_PROMPT.format(current_time=current_time)
-        
-        # 构建用户消息（多模态）
+
+        # Build user message (multimodal)
         user_content = [
             {
                 "type": "image_url",
@@ -165,48 +220,131 @@ def parse_image_with_llm(
             },
             {
                 "type": "text",
-                "text": f"补充说明：{additional_note or '无'}",
+                "text": f"Additional note: {additional_note or 'None'}",
             },
         ]
-        
-        # 创建消息
+
+        # Create messages
         messages = [
             ("system", system_message),
             HumanMessage(content=user_content),
         ]
-        
+
         logger.debug(f"Calling LLM Vision API (model={settings.OPENAI_MODEL})")
-        
-        # 调用 LLM（支持 Vision）
+
+        # Call LLM (supports Vision)
         response = llm.invoke(messages)
-        
+
         elapsed = time.time() - start_time
         logger.info(f"LLM Vision API call completed in {elapsed:.2f}s")
-        
-        # 解析 JSON 响应
+
+        # Parse JSON response
         result = parser.parse(response.content)
-        
-        # 检查是否需要澄清
+
+        # Check if we have events and if they need time completion
         needs_clarification = result.get("needs_clarification", False)
         clarification_question = result.get("clarification_question")
+        search_keywords = result.get("search_keywords", [])
         
-        if needs_clarification:
-            logger.info(f"LLM requests clarification: {clarification_question}")
+        # Check if any event is missing start_time
+        events_raw = result.get("events", [])
+        has_event_without_time = any(
+            e.get("title") and not e.get("start_time") 
+            for e in events_raw
+        )
         
-        # 转换为 ParsedEvent
+        # Auto-generate search keywords from event titles if not provided
+        if not search_keywords and has_event_without_time:
+            for e in events_raw:
+                if e.get("title"):
+                    search_keywords.append(e["title"])
+            if result.get("date_hint"):
+                search_keywords.append(result["date_hint"])
+            logger.info(f"[LLM-IMAGE] Auto-generated search keywords from event title: {search_keywords}")
+        
+        # Trigger web search if: we have search_keywords AND (missing time OR needs clarification)
+        should_search = settings.ENABLE_WEB_SEARCH and search_keywords and (has_event_without_time or needs_clarification)
+        
+        if should_search:
+            logger.info(f"[LLM-IMAGE] Event info incomplete (missing_time={has_event_without_time}), attempting web search with keywords: {search_keywords}")
+            
+            try:
+                from services.search_service import (
+                    search_event_info_sync,
+                    extract_event_details_from_search_sync,
+                    merge_event_info,
+                )
+                
+                # Extract location hint from first event if available
+                location_hint = None
+                if events_raw:
+                    location_hint = events_raw[0].get("location")
+                
+                logger.info(f"[LLM-IMAGE] Calling search_event_info_sync...")
+                search_results = search_event_info_sync(
+                    query=" ".join(search_keywords),
+                    location_hint=location_hint,
+                    date_hint=result.get("date_hint"),
+                )
+                
+                logger.info(f"[LLM-IMAGE] Search returned {len(search_results) if search_results else 0} results")
+                
+                if search_results:
+                    logger.info(f"[LLM-IMAGE] Extracting event details from search results...")
+                    first_event = events_raw[0] if events_raw else {}
+                    completed_info = extract_event_details_from_search_sync(
+                        search_results,
+                        partial_event={
+                            "title": first_event.get("title", ""),
+                            "date_hint": result.get("date_hint"),
+                            "location_hint": first_event.get("location", ""),
+                        },
+                    )
+                    
+                    if completed_info:
+                        logger.info(f"[LLM-IMAGE] Search found: {completed_info.event_name}, time={completed_info.start_time}")
+                        # Merge with original result
+                        result = merge_event_info(result, completed_info)
+                        
+                        # Check if we now have complete info
+                        updated_events = result.get("events", [])
+                        if updated_events and updated_events[0].get("start_time"):
+                            needs_clarification = False
+                            clarification_question = None
+                            logger.info("[LLM-IMAGE] Web search successfully completed event info")
+                        else:
+                            logger.info("[LLM-IMAGE] Web search provided partial information")
+                    else:
+                        logger.info("[LLM-IMAGE] Could not extract event details from search results")
+                else:
+                    logger.info("[LLM-IMAGE] No search results returned")
+            except Exception as e:
+                logger.warning(f"[LLM-IMAGE] Web search failed: {e}", exc_info=True)
+        elif has_event_without_time and not settings.ENABLE_WEB_SEARCH:
+            logger.info("[LLM-IMAGE] Event info incomplete, but web search is disabled")
+        
+        # Convert to ParsedEvent (only events with valid start_time)
         events = _convert_to_parsed_events(result, source_type="image")
         
-        logger.info(f"LLM image parsing completed: {len(events)} event(s) extracted, needs_clarification={needs_clarification}")
+        # Collect partial events (have title but no start_time) for potential search in graph.py
+        partial_events = [
+            e for e in result.get("events", [])
+            if e.get("title") and not e.get("start_time")
+        ]
+
+        logger.info(f"LLM image parsing completed: {len(events)} complete event(s), {len(partial_events)} partial event(s)")
         return ParseResult(
             events=events,
             needs_clarification=needs_clarification,
             clarification_question=clarification_question,
+            search_keywords=search_keywords if search_keywords else None,
+            partial_events=partial_events if partial_events else None,
         )
     
     except Exception as e:
         elapsed = time.time() - start_time
         logger.error(f"LLM image parsing failed after {elapsed:.2f}s: {e}", exc_info=True)
-        return ParseResult(events=[], needs_clarification=False, clarification_question=None)
+        return ParseResult(events=[], needs_clarification=False, clarification_question=None, search_keywords=None, partial_events=None)
 
 
 def parse_images_with_llm(
@@ -214,33 +352,33 @@ def parse_images_with_llm(
     additional_note: Optional[str] = None,
 ) -> List[ParsedEvent]:
     """
-    使用 LangChain + OpenAI Vision 批量解析多张图片中的日程信息
-    
+    Batch parse event information from multiple images using LangChain + OpenAI Vision
+
     Args:
-        images_base64: Base64 编码的图片列表
-        additional_note: 补充说明
-        
+        images_base64: List of base64 encoded images
+        additional_note: Additional note
+
     Returns:
-        解析出的事件列表（所有图片的事件合并）
+        List of parsed events (merged from all images)
     """
     if not images_base64:
         return []
-    
+
     start_time = time.time()
     logger.debug(f"Starting LLM batch image parsing ({len(images_base64)} images)")
-    
+
     all_events = []
-    
+
     try:
         llm = get_llm()
         parser = JsonOutputParser(pydantic_object=EventExtractionList)
         current_time = datetime.now().isoformat()
         system_message = IMAGE_PARSE_SYSTEM_PROMPT.format(current_time=current_time)
-        
-        # 为每张图片构建多模态消息
+
+        # Build multimodal messages for each image
         user_content = []
-        
-        # 添加所有图片
+
+        # Add all images
         for img_base64 in images_base64:
             user_content.append({
                 "type": "image_url",
@@ -248,43 +386,43 @@ def parse_images_with_llm(
                     "url": f"data:image/jpeg;base64,{img_base64}",
                 },
             })
-        
-        # 添加文本说明
-        note_text = f"请分析以上 {len(images_base64)} 张图片，提取所有日程信息。"
+
+        # Add text instruction
+        note_text = f"Please analyze the above {len(images_base64)} image(s) and extract all event information."
         if additional_note:
-            note_text += f"\n补充说明：{additional_note}"
+            note_text += f"\nAdditional note: {additional_note}"
         user_content.append({
             "type": "text",
             "text": note_text,
         })
-        
-        # 创建消息
+
+        # Create messages
         messages = [
             ("system", system_message),
             HumanMessage(content=user_content),
         ]
-        
+
         logger.debug(f"Calling LLM Vision API with {len(images_base64)} images (model={settings.OPENAI_MODEL})")
-        
-        # 调用 LLM（支持多图片 Vision）
+
+        # Call LLM (supports multiple images Vision)
         response = llm.invoke(messages)
-        
+
         elapsed = time.time() - start_time
         logger.info(f"LLM batch Vision API call completed in {elapsed:.2f}s")
-        
-        # 解析 JSON 响应
+
+        # Parse JSON response
         result = parser.parse(response.content)
-        
-        # 转换为 ParsedEvent
+
+        # Convert to ParsedEvent
         events = _convert_to_parsed_events(result, source_type="image")
-        
+
         logger.info(f"LLM batch image parsing completed: {len(events)} event(s) extracted from {len(images_base64)} image(s)")
         return events
-    
+
     except Exception as e:
         elapsed = time.time() - start_time
         logger.error(f"LLM batch image parsing failed after {elapsed:.2f}s: {e}", exc_info=True)
-        # 如果批量处理失败，尝试逐个处理
+        # If batch processing fails, try individual processing
         logger.info("Falling back to individual image parsing...")
         for idx, img_base64 in enumerate(images_base64):
             try:
@@ -294,7 +432,7 @@ def parse_images_with_llm(
             except Exception as img_error:
                 logger.warning(f"Failed to parse image {idx+1}: {img_error}")
                 continue
-        
+
         return all_events
 
 
@@ -307,32 +445,38 @@ def _convert_to_parsed_events(
     source_type: str,
 ) -> List[ParsedEvent]:
     """
-    将 LLM 响应转换为 ParsedEvent 列表
-    
+    Convert LLM response to ParsedEvent list
+
     Args:
-        result: LLM 解析结果
-        source_type: 来源类型 (text/image)
-        
+        result: LLM parsing result
+        source_type: Source type (text/image)
+
     Returns:
-        ParsedEvent 列表
+        List of ParsedEvent
     """
     events = []
     for idx, event_data in enumerate(result.get("events", [])):
         try:
+            # Skip events without start_time (will be handled by partial_events)
+            start_time_str = event_data.get("start_time")
+            if not start_time_str:
+                logger.debug(f"Event {idx+1} '{event_data.get('title')}' has no start_time, skipping")
+                continue
+            
             events.append(ParsedEvent(
                 id=None,
                 title=event_data["title"],
-                start_time=datetime.fromisoformat(event_data["start_time"]),
+                start_time=datetime.fromisoformat(start_time_str),
                 end_time=datetime.fromisoformat(event_data["end_time"]) if event_data.get("end_time") else None,
                 location=event_data.get("location"),
                 description=event_data.get("description"),
                 source_type=source_type,
                 is_followed=False,
             ))
-            logger.debug(f"Parsed event {idx+1}: {event_data.get('title')} @ {event_data.get('start_time')}")
-        except (KeyError, ValueError) as e:
-            # 跳过格式错误的事件
+            logger.debug(f"Parsed event {idx+1}: {event_data.get('title')} @ {start_time_str}")
+        except (KeyError, ValueError, TypeError) as e:
+            # Skip events with invalid format
             logger.warning(f"Skipping invalid event data at index {idx}: {e}")
             continue
-    
+
     return events

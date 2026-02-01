@@ -25,6 +25,7 @@ FollowUP 是一款基于 Flutter 开发的跨平台日程管理应用，通过 A
 - **日期格式化**: intl
 - **应用信息**: package_info_plus
 - **国际化**: flutter_localizations + ARB files
+- **Markdown 渲染**: flutter_markdown
 
 ## 项目结构
 
@@ -46,11 +47,12 @@ lib/
 ├── pages/                 # 页面
 │   ├── landing_page.dart  # 产品介绍首页 (Hero背景图)
 │   ├── login_page.dart    # 登录页面
-│   ├── home_page.dart     # 主页 (登录后)
+│   ├── home_page.dart     # 主页 (保留，目前未使用)
 │   ├── chat_page.dart     # AI 聊天页面 (主要交互入口)
 │   ├── input_page.dart    # 输入页面（文字/图片识别）
-│   ├── preview_page.dart  # 预览确认页面
-│   └── events_page.dart   # 活动列表页面
+│   ├── preview_page.dart  # 活动详情/编辑页面
+│   ├── events_page.dart   # 活动列表页面
+│   └── profile_page.dart  # 用户个人信息页面
 ├── providers/             # 状态管理
 │   ├── auth_provider.dart # 认证状态
 │   └── events_provider.dart # 活动状态
@@ -76,6 +78,8 @@ assets/
     ├── logo.png           # 应用 Logo
     ├── logo_transparent.png # 透明背景 Logo
     └── main_picture.png   # Hero 背景图片
+
+updatelog.md                # 更新日志
 ```
 
 ## 环境要求
@@ -88,7 +92,7 @@ assets/
 
 ## 当前版本
 
-- **Version**: 1.0.12+1
+- **Version**: 1.0.16+1
 
 ## 快速开始
 
@@ -233,13 +237,57 @@ flutter build appbundle --release
 
 | 路由 | 页面 | 描述 |
 |------|------|------|
-| `/` | LoginPage | 登录页面（入口） |
+| `/` | LandingPage | 产品介绍首页（入口） |
 | `/login` | LoginPage | 登录页面 |
-| `/home` | HomePage | 主页（需登录） |
-| `/chat` | ChatPage | AI 聊天页面 |
-| `/input` | InputPage | 输入页面 |
-| `/preview` | PreviewPage | 预览确认页面 |
+| `/home` | HomePage | 主页（保留，目前无入口） |
+| `/chat` | ChatPage | AI 聊天页面（登录后主入口） |
+| `/input` | InputPage | 输入页面（仅从 HomePage 可进入） |
+| `/preview` | PreviewPage | 活动详情/编辑页面 |
 | `/events` | EventsPage | 活动列表页面 |
+| `/profile` | ProfilePage | 用户个人信息页面 |
+
+## 页面跳转关系
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  LandingPage (/)  产品介绍首页                                   │
+│  → /login (Get Started 按钮)                                    │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  LoginPage (/login)  登录页面                                    │
+│  → /chat (登录成功后)                                            │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  ChatPage (/chat)  AI 聊天页面 ← 主交互入口                      │
+│                                                                 │
+│  → /events (查看活动列表)                                        │
+│  → /profile (用户菜单 → 个人信息)                                │
+│  → /preview (查看活动详情)                                       │
+│  → / (退出登录)                                                  │
+└─────────────────────────────────────────────────────────────────┘
+           │                    │                    │
+           ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ EventsPage      │  │ ProfilePage     │  │ PreviewPage     │
+│ (/events)       │  │ (/profile)      │  │ (/preview)      │
+│ 活动列表        │  │ 个人信息        │  │ 活动详情/编辑    │
+│                 │  │                 │  │                 │
+│ → /preview      │  │ → /events       │  │ (留在当前页)    │
+│   (点击活动)    │  │ → /chat         │  │                 │
+│                 │  │ → / (退出登录)  │  │                 │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+### 未使用页面
+
+| 页面 | 路由 | 状态 |
+|------|------|------|
+| HomePage | `/home` | 保留，目前无入口 |
+| InputPage | `/input` | 仅从 HomePage 可进入 |
 
 ## 使用流程
 

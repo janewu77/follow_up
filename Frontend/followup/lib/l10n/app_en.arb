@@ -253,5 +253,24 @@
   "chatProcessing": "I found event information in your message! Would you like me to extract the details and add it to your calendar?",
   "chatExtractEvent": "Extract Event",
   "chatUploadImage": "Upload Image",
-  "chatViewEvents": "My Events"
+  "chatViewEvents": "My Events",
+
+  "profile": "Profile",
+  "accountInfo": "Account Info",
+  "userId": "User ID",
+  "registeredAt": "Registered At",
+  "quickActions": "Quick Actions",
+  "serverConnection": "Server Connection",
+  "connected": "Connected",
+  "disconnected": "Disconnected",
+  "testing": "Testing...",
+  "unknown": "Unknown",
+  "myEvents": "My Events",
+  "aiAssistant": "AI Assistant",
+  "loadFailed": "Load failed",
+  "retry": "Retry",
+  "unableToGetUserInfo": "Unable to get user info",
+  "sourceTypeImage": "Image",
+  "sourceTypeText": "Text",
+  "sourceImage": "Source Image"
 }

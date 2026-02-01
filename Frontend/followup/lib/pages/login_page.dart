@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../utils/validators.dart';
@@ -36,7 +37,21 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _loadVersion();
+    _loadSavedUsername();
     _initAnimations();
+  }
+
+  Future<void> _loadSavedUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedUsername = prefs.getString('last_username');
+    if (savedUsername != null && savedUsername.isNotEmpty) {
+      _usernameController.text = savedUsername;
+    }
+  }
+
+  Future<void> _saveUsername(String username) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('last_username', username);
   }
 
   void _initAnimations() {
@@ -97,13 +112,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final username = _usernameController.text.trim();
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.login(
-      _usernameController.text.trim(),
+      username,
       _passwordController.text,
     );
 
     if (success && mounted) {
+      // 保存用户名以便下次自动填充
+      await _saveUsername(username);
       Navigator.pushReplacementNamed(context, '/chat');
     }
   }

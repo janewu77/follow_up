@@ -642,4 +642,58 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatViewEvents => 'My Events';
+
+  @override
+  String get profile => 'Profile';
+
+  @override
+  String get accountInfo => 'Account Info';
+
+  @override
+  String get userId => 'User ID';
+
+  @override
+  String get registeredAt => 'Registered At';
+
+  @override
+  String get quickActions => 'Quick Actions';
+
+  @override
+  String get serverConnection => 'Server Connection';
+
+  @override
+  String get connected => 'Connected';
+
+  @override
+  String get disconnected => 'Disconnected';
+
+  @override
+  String get testing => 'Testing...';
+
+  @override
+  String get unknown => 'Unknown';
+
+  @override
+  String get myEvents => 'My Events';
+
+  @override
+  String get aiAssistant => 'AI Assistant';
+
+  @override
+  String get loadFailed => 'Load failed';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get unableToGetUserInfo => 'Unable to get user info';
+
+  @override
+  String get sourceTypeImage => 'Image';
+
+  @override
+  String get sourceTypeText => 'Text';
+
+  @override
+  String get sourceImage => 'Source Image';
 }

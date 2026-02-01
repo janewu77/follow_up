@@ -229,8 +229,8 @@ def parse_image(image_base64: str, additional_note: str = None) -> ImageParseRes
 def parse_images(images_base64: List[str], additional_note: str = None) -> list[ParsedEvent]:
     """
     Batch parse multiple image contents
-    Uses LLM Vision for batch processing, falls back to individual processing on failure
-    Generates thumbnail for each image and attaches to corresponding events
+    Processes each image individually to ensure correct thumbnail assignment
+    Each event gets the thumbnail from its corresponding source image
     """
     llm_available = is_llm_available()
     logger.debug(f"Parsing {len(images_base64)} images (LLM_AVAILABLE={llm_available})")
@@ -245,35 +245,14 @@ def parse_images(images_base64: List[str], additional_note: str = None) -> list[
     
     all_events = []
     
-    try:
-        from services.llm_service import parse_images_with_llm
-        # Try batch processing
-        events = parse_images_with_llm(images_base64, additional_note)
-        if events:
-            elapsed = time.time() - start_time
-            logger.info(f"LLM batch parsed {len(events)} event(s) from {len(images_base64)} image(s) in {elapsed:.2f}s")
-            
-            # Generate and attach thumbnail for each event (using first image's thumbnail)
-            if images_base64:
-                thumbnail = generate_thumbnail(images_base64[0])
-                for event in events:
-                    event.source_thumbnail = thumbnail
-            
-            return events
-        else:
-            logger.warning("LLM batch returned no events, trying individual parsing")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.warning(f"Batch parsing failed, falling back to individual parsing: {e}")
-    
-    # Fallback: Process each image individually
-    logger.debug("Using individual image parsing (fallback)")
+    # Process each image individually to ensure correct thumbnail assignment
+    # This ensures each event gets the thumbnail from its corresponding source image
+    logger.debug("Processing images individually to assign correct thumbnails")
     for idx, image_base64 in enumerate(images_base64):
         try:
-            events = parse_image(image_base64, additional_note)
-            all_events.extend(events)
-            logger.debug(f"Parsed image {idx+1}/{len(images_base64)}: {len(events)} event(s)")
+            result = parse_image(image_base64, additional_note)
+            all_events.extend(result.events)
+            logger.debug(f"Parsed image {idx+1}/{len(images_base64)}: {len(result.events)} event(s)")
         except Exception as e:
             logger.warning(f"Failed to parse image {idx+1}: {e}")
             continue

@@ -619,7 +619,8 @@
                                         updateStatus(`💭 ${data.message}`);
                                         break;
                                     case 'status':
-                                        updateStatus(data.message);
+                                        // Show search/processing progress with icon
+                                        updateStatus(`🔍 ${data.message}`);
                                         break;
                                     case 'intent':
                                         intent = data.intent;

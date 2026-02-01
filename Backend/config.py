@@ -1,14 +1,14 @@
 """
-配置管理
+Configuration Management
 
-环境变量配置:
-    DATABASE_URL: 数据库连接字符串
-        - 开发环境 (SQLite): sqlite:///./followup.db
-        - 生产环境 (PostgreSQL): postgresql://user:password@host:port/database
-        - 示例: DATABASE_URL=postgresql://postgres:mypassword@db.example.com:5432/followup
-    
-    OPENAI_API_KEY: OpenAI API 密钥
-    OPENAI_MODEL: 使用的模型名称 (默认: gpt-4o-mini)
+Environment Variables:
+    DATABASE_URL: Database connection string
+        - Development (SQLite): sqlite:///./followup.db
+        - Production (PostgreSQL): postgresql://user:password@host:port/database
+        - Example: DATABASE_URL=postgresql://postgres:mypassword@db.example.com:5432/followup
+
+    OPENAI_API_KEY: OpenAI API key
+    OPENAI_MODEL: Model name to use (default: gpt-5.2)
 """
 import os
 from pathlib import Path
@@ -16,33 +16,43 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """应用配置"""
-    
-    # 数据库配置
-    # 开发环境默认使用 SQLite，生产环境通过环境变量设置 PostgreSQL
-    # PostgreSQL 格式: postgresql://user:password@host:port/database
+    """Application configuration"""
+
+    # Database configuration
+    # Development defaults to SQLite, production uses PostgreSQL via env var
+    # PostgreSQL format: postgresql://user:password@host:port/database
     DATABASE_URL: str = "sqlite:///./followup.db"
-    
-    # OpenAI API 配置
+
+    # OpenAI API configuration
     OPENAI_API_KEY: str = ""
-    OPENAI_MODEL: str = "gpt-5.2"  # 默认使用 GPT-5.2 模型
-    
-    # 从环境变量读取，如果没有则使用默认值
+    OPENAI_MODEL: str = "gpt-5.2"  # Default model: GPT-5.2
+
+    # Web Search Configuration
+    SERPAPI_KEY: str = ""  # SerpAPI key for Google Search
+    TAVILY_API_KEY: str = ""  # Tavily API key (alternative to SerpAPI)
+    ENABLE_WEB_SEARCH: bool = True  # Feature flag to enable/disable web search
+    WEB_SEARCH_TIMEOUT: int = 10  # Timeout in seconds for search requests
+
+    # Read from environment variables, use defaults if not set
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
 
 
-# 全局配置实例
+# Global configuration instance
 settings = Settings()
 
-# 测试环境强制使用内存数据库（完全隔离生产数据库）
-# 这必须在 settings 创建后立即检查，确保测试不会影响生产数据库
+# Testing environment forces in-memory database (completely isolated from production)
+# This must be checked immediately after settings creation to ensure tests don't affect production
 if os.getenv("TESTING") == "1":
     settings.DATABASE_URL = "sqlite:///:memory:"
 
-# 确保数据库文件目录存在（仅对文件数据库）
+# Auto-disable web search if no API keys are configured
+if not settings.SERPAPI_KEY and not settings.TAVILY_API_KEY:
+    settings.ENABLE_WEB_SEARCH = False
+
+# Ensure database file directory exists (for file databases only)
 if settings.DATABASE_URL.startswith("sqlite") and not settings.DATABASE_URL.endswith(":memory:"):
     db_path = Path(settings.DATABASE_URL.replace("sqlite:///", ""))
     db_path.parent.mkdir(parents=True, exist_ok=True)

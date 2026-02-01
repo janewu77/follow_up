@@ -1305,6 +1305,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'My Events'**
   String get chatViewEvents;
+
+  /// No description provided for @profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profile;
+
+  /// No description provided for @accountInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Info'**
+  String get accountInfo;
+
+  /// No description provided for @userId.
+  ///
+  /// In en, this message translates to:
+  /// **'User ID'**
+  String get userId;
+
+  /// No description provided for @registeredAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered At'**
+  String get registeredAt;
+
+  /// No description provided for @quickActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Actions'**
+  String get quickActions;
+
+  /// No description provided for @serverConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Server Connection'**
+  String get serverConnection;
+
+  /// No description provided for @connected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get connected;
+
+  /// No description provided for @disconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get disconnected;
+
+  /// No description provided for @testing.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing...'**
+  String get testing;
+
+  /// No description provided for @unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
+
+  /// No description provided for @myEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'My Events'**
+  String get myEvents;
+
+  /// No description provided for @aiAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Assistant'**
+  String get aiAssistant;
+
+  /// No description provided for @loadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Load failed'**
+  String get loadFailed;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @unableToGetUserInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to get user info'**
+  String get unableToGetUserInfo;
+
+  /// No description provided for @sourceTypeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get sourceTypeImage;
+
+  /// No description provided for @sourceTypeText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get sourceTypeText;
+
+  /// No description provided for @sourceImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Source Image'**
+  String get sourceImage;
 }
 
 class _AppLocalizationsDelegate

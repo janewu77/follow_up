@@ -652,4 +652,58 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get chatViewEvents => 'Meine Termine';
+
+  @override
+  String get profile => 'Profil';
+
+  @override
+  String get accountInfo => 'Kontoinformationen';
+
+  @override
+  String get userId => 'Benutzer-ID';
+
+  @override
+  String get registeredAt => 'Registriert am';
+
+  @override
+  String get quickActions => 'Schnellaktionen';
+
+  @override
+  String get serverConnection => 'Serververbindung';
+
+  @override
+  String get connected => 'Verbunden';
+
+  @override
+  String get disconnected => 'Nicht verbunden';
+
+  @override
+  String get testing => 'Testen...';
+
+  @override
+  String get unknown => 'Unbekannt';
+
+  @override
+  String get myEvents => 'Meine Termine';
+
+  @override
+  String get aiAssistant => 'KI-Assistent';
+
+  @override
+  String get loadFailed => 'Laden fehlgeschlagen';
+
+  @override
+  String get retry => 'Erneut versuchen';
+
+  @override
+  String get unableToGetUserInfo => 'Benutzerinfo nicht verfügbar';
+
+  @override
+  String get sourceTypeImage => 'Bild';
+
+  @override
+  String get sourceTypeText => 'Text';
+
+  @override
+  String get sourceImage => 'Quellbild';
 }
