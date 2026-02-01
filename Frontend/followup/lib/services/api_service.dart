@@ -138,6 +138,30 @@ class ApiService {
     }
   }
 
+  // 搜索活动
+  static Future<List<EventData>> searchEvents(String query, {int limit = 10}) async {
+    if (useMock) {
+      return MockService.searchEvents(query, limit: limit);
+    }
+
+    final uri = Uri.parse("${ApiConfig.baseUrl}/api/events/search")
+        .replace(queryParameters: {
+          "q": query,
+          "limit": limit.toString(),
+        });
+
+    final response = await http.get(uri, headers: await _authHeaders());
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return (data["events"] as List)
+          .map((e) => EventData.fromJson(e))
+          .toList();
+    } else {
+      throw Exception("搜索失败");
+    }
+  }
+
   // 创建活动
   static Future<EventData> createEvent(EventData event) async {
     if (useMock) {

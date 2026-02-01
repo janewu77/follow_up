@@ -99,6 +99,20 @@ class MockService {
     );
   }
 
+  // 模拟搜索活动
+  static Future<List<EventData>> searchEvents(String query, {int limit = 10}) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final events = _getMockEvents();
+    final lowerQuery = query.toLowerCase();
+    return events
+        .where((e) =>
+            e.title.toLowerCase().contains(lowerQuery) ||
+            (e.description?.toLowerCase().contains(lowerQuery) ?? false) ||
+            (e.location?.toLowerCase().contains(lowerQuery) ?? false))
+        .take(limit)
+        .toList();
+  }
+
   // Mock 活动数据
   static List<EventData> _getMockEvents({bool followedOnly = false}) {
     final allEvents = [
