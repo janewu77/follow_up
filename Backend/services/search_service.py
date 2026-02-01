@@ -208,7 +208,7 @@ async def extract_event_details_from_search(
             for r in search_results[:5]  # Limit to top 5 results
         ])
 
-        prompt = f"""I have partial event information:
+        prompt = f"""I have partial event information that needs to be completed for a calendar entry:
 - Title: {partial_event.get('title', 'Unknown')}
 - Date hint: {partial_event.get('date_hint', 'Unknown')}
 - Location hint: {partial_event.get('location_hint', 'Unknown')}
@@ -216,20 +216,29 @@ async def extract_event_details_from_search(
 Here are web search results about this event:
 {context}
 
+IMPORTANT: Focus on extracting information for a calendar event. Priority:
+1. **TIME** (MOST IMPORTANT): Extract exact start date and time. Look for dates, times, schedules.
+2. **LOCATION**: Extract venue name and full address for navigation.
+3. **DESCRIPTION**: Provide a helpful summary about the event.
+
 Extract complete event details in JSON format:
 {{
-    "event_name": "Full event name",
-    "start_time": "ISO 8601 datetime or null",
+    "event_name": "Full official event name",
+    "start_time": "ISO 8601 datetime (e.g., 2026-02-15T09:00:00) - REQUIRED if found",
     "end_time": "ISO 8601 datetime or null",
-    "location": "Venue name",
-    "venue_address": "Full address or null",
-    "description": "Event description or null",
-    "ticket_url": "Ticket purchase URL or null",
-    "price_range": "Price info or null",
-    "source_url": "Most authoritative source URL"
+    "location": "Venue/Place name (e.g., Hamburg Congress Center)",
+    "venue_address": "Full street address for navigation (e.g., Marseiller Str. 1, 20355 Hamburg)",
+    "description": "Brief description of what the event is about, who it's for, what to expect",
+    "ticket_url": "URL to register or buy tickets, or null",
+    "price_range": "Price information or 'Free' if applicable, or null",
+    "source_url": "Most authoritative source URL (official event page preferred)"
 }}
 
-If you cannot find complete information, return null for missing fields."""
+Notes:
+- For start_time, if only date is available without time, use the date with T00:00:00 for all-day events
+- For multi-day events, set end_time to the last day
+- If you cannot find specific information, return null for that field
+- Include organizer name in description if available"""
 
         response = llm.invoke(prompt)
 
@@ -275,6 +284,11 @@ def merge_event_info(
 ) -> Dict:
     """
     Merge original LLM parsing result with web search results
+    
+    Priority for event information:
+    1. Time (start_time, end_time) - MOST IMPORTANT
+    2. Location (location, venue_address)
+    3. Description - enrich with additional details
 
     Args:
         original_result: Original parsing result from LLM
@@ -289,40 +303,72 @@ def merge_event_info(
     if merged.get("events") and len(merged["events"]) > 0:
         event = merged["events"][0]
 
-        # Fill in missing fields from search result
-        # Always prefer search result title if it's more complete
-        if (not event.get("title") or
-                event.get("title") == "Unknown" or
-                len(search_result.event_name) > len(event.get("title", ""))):
-            event["title"] = search_result.event_name
-
+        # Priority 1: TIME (most important for calendar events)
+        # Always fill in missing time from search
         if not event.get("start_time") and search_result.start_time:
             event["start_time"] = search_result.start_time
-
+            logger.info(f"[MERGE] Added start_time from search: {search_result.start_time}")
+        
         if not event.get("end_time") and search_result.end_time:
             event["end_time"] = search_result.end_time
+            logger.info(f"[MERGE] Added end_time from search: {search_result.end_time}")
 
+        # Priority 2: LOCATION
         if not event.get("location"):
-            location = search_result.location or search_result.venue_address
-            event["location"] = location
+            # Combine location and venue address for completeness
+            location_parts = []
+            if search_result.location:
+                location_parts.append(search_result.location)
+            if search_result.venue_address and search_result.venue_address != search_result.location:
+                location_parts.append(search_result.venue_address)
+            if location_parts:
+                event["location"] = ", ".join(location_parts)
+                logger.info(f"[MERGE] Added location from search: {event['location']}")
+        elif search_result.venue_address and search_result.venue_address not in event.get("location", ""):
+            # Append venue address if not already included
+            event["location"] = f"{event['location']}, {search_result.venue_address}"
+            logger.info(f"[MERGE] Enhanced location with address: {event['location']}")
 
-        if not event.get("description") and search_result.description:
-            event["description"] = search_result.description
+        # Priority 3: TITLE (prefer more complete title)
+        if (not event.get("title") or
+                event.get("title") == "Unknown" or
+                (search_result.event_name and len(search_result.event_name) > len(event.get("title", "")))):
+            event["title"] = search_result.event_name
+            logger.info(f"[MERGE] Updated title from search: {search_result.event_name}")
 
-        # Add additional info
+        # Priority 4: DESCRIPTION - enrich with additional details
+        description_parts = []
+        
+        # Keep original description if exists
+        if event.get("description"):
+            description_parts.append(event["description"])
+        
+        # Add search result description if different from original
+        if search_result.description:
+            original_desc = event.get("description", "").lower()
+            search_desc = search_result.description.lower()
+            # Only add if it provides new information
+            if search_desc not in original_desc and len(search_result.description) > 20:
+                if description_parts:
+                    description_parts.append(f"\n---\n{search_result.description}")
+                else:
+                    description_parts.append(search_result.description)
+        
+        # Add ticket URL if available
         if search_result.ticket_url:
-            desc = event.get("description", "")
-            if desc:
-                event["description"] = f"{desc}\n\nTicket URL: {search_result.ticket_url}"
-            else:
-                event["description"] = f"Ticket URL: {search_result.ticket_url}"
-
+            description_parts.append(f"\n🎫 Tickets: {search_result.ticket_url}")
+        
+        # Add price range if available
         if search_result.price_range:
-            desc = event.get("description", "")
-            if desc:
-                event["description"] = f"{desc}\nPrice: {search_result.price_range}"
-            else:
-                event["description"] = f"Price: {search_result.price_range}"
+            description_parts.append(f"\n💰 Price: {search_result.price_range}")
+        
+        # Add source URL for reference
+        if search_result.source_url:
+            description_parts.append(f"\n🔗 More info: {search_result.source_url}")
+        
+        if description_parts:
+            event["description"] = "".join(description_parts)
+            logger.info(f"[MERGE] Enriched description (length: {len(event['description'])})")
 
     return merged
 

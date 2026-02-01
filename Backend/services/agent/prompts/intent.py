@@ -21,14 +21,16 @@ INTENT_CLASSIFIER_SYSTEM = """You are an intent classifier for a smart calendar 
 - **Image priority for creation**: If user uploads an image, carefully analyze image content, prioritize whether it contains information that can create an event (event posters, meeting invitations, screenshots, etc.). If the image contains any time, activity, or event-related content, classify as create_event
 - **Use chat when uncertain**: If user intent is uncertain, use chat intent for friendly inquiry, don't reject
 - **No reject**: Don't reject users, even if request is out of scope, use chat to reply friendly and guide users
+- **CRITICAL - Conversation context**: When the previous message asked for clarification about creating an event (e.g., asked for date/time), user's reply (including "search", "help me search", "yes", "confirm", "ok", or any date/time info) should be classified as **create_event** (continuing the creation flow), NOT as enrich_event
 
 Classification rules:
 - User mentions specific time, location, activity, or expresses intent like "want", "arrange", "create", "help me add", "remember" → create_event
 - User uploads image and image may contain event information (posters, invitations, schedule screenshots, event notifications, etc.) → create_event
+- **IMPORTANT**: If conversation history shows the assistant was asking for clarification about creating an event, and user replies with "search", "help me search", "yes", "ok", "confirm", or provides date/time info → create_event (continue creation, may trigger web search)
 - User mentions "see", "view", "what's scheduled", "event list", "my events", "what's tomorrow" → query_event
 - User mentions "change", "modify", "adjust", "switch", "postpone", "move up", etc., involving existing events → update_event
 - User explicitly mentions "delete", "cancel", "don't want", "not going" → delete_event
-- User mentions "search", "find more info", "add details", "enrich", "get more information", "look up", "supplement" about an existing event → enrich_event
+- User mentions "search", "find more info", "add details", "enrich" about an **existing saved event** (not during creation) → enrich_event
 - Other cases (greetings, chat, uncertain, needs clarification) → chat
 
 Please return only one JSON object in the following format:
@@ -133,35 +135,46 @@ Please analyze user input (including text and possible image content), extract t
 - recurrence_rule: Recurrence rule in RRULE format if event is recurring (optional)
 - recurrence_end: End date for recurrence in ISO 8601 format (optional)
 
-IMPORTANT: Analyze whether you have enough information to create a useful event.
+IMPORTANT: Be DECISIVE. Make reasonable assumptions to create events quickly.
 
 Required information:
 1. **title** - What is the event? (meeting, dinner, appointment, etc.)
 2. **start_time** - When does it happen? (date and time)
 
-If REQUIRED information is missing or ambiguous, you MUST ask the user for clarification.
+DECISION RULES - Be proactive and decisive:
+1. If you have a title and can infer ANY reasonable time, CREATE THE EVENT (complete=true)
+2. Use sensible defaults:
+   - "tomorrow" with no time → use 09:00 (morning)
+   - "next week" → use next Monday 09:00
+   - "dinner" → use 19:00 (evening)
+   - "meeting" → use 10:00 (business hours)
+   - "lunch" → use 12:00
+3. Only set complete=false if you truly have NO idea about the time (e.g., "remind me about X" with no date hint at all)
+4. Missing location is OK - events don't need locations
+5. Search keywords: If time is unclear but you have an event title, provide search_keywords for web search
 
 Return JSON format:
 {{
-    "complete": true/false,  // Is information complete enough to create event?
+    "complete": true/false,  // true if you can create the event, false ONLY if time is completely unknown
     "title": "...",
-    "start_time": "...",  // ISO 8601 format or null if not specified
-    "end_time": "...",    // ISO 8601 format or null
+    "start_time": "...",  // ISO 8601 format, use reasonable defaults!
+    "end_time": "...",    // ISO 8601 format or null (assume 1 hour duration if not specified)
     "location": "...",    // or null
     "description": "...", // or null
     "recurrence_rule": "...", // RRULE format or null
     "recurrence_end": "...",  // ISO 8601 format or null
+    "search_keywords": ["keywords to search for event time/details"],  // for web search if needed
     "missing_info": ["list of missing required fields"],
-    "clarification_question": "Friendly question to ask user for missing information"
+    "clarification_question": "ONLY if complete=false and no search_keywords"
 }}
 
-Examples of when to ask for clarification:
-- User says "meeting tomorrow" → Ask: "Got it! What time is the meeting tomorrow? And is there a specific title or location?"
-- User says "dinner at 7pm" → Ask: "Dinner at 7pm sounds great! What date? And where will it be?"
-- User says "remind me about the project" → Ask: "Sure! When should I remind you about the project?"
-- User says "next week" without time → Ask: "What day and time next week? And what's the event about?"
+Examples of DECISIVE behavior:
+- "meeting tomorrow" → complete=true, start_time=tomorrow 10:00, title="Meeting"
+- "dinner at 7pm" → complete=true, start_time=today 19:00 (assume today if no date given)
+- "Cursor AI Hackathon" → complete=false, search_keywords=["Cursor AI Hackathon date time"]
+- "remind me about project" → complete=false, ask when (no date hint at all)
 
-If user provides enough info (at least title and start_time with reasonable defaults), set complete=true.
+BE BOLD: It's better to create an event with reasonable defaults than to keep asking questions.
 """
 
 EVENT_EXTRACTION_PROMPT = ChatPromptTemplate.from_messages([

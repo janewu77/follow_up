@@ -46,6 +46,9 @@ class AgentState(TypedDict):
     response: str
     action_result: Optional[dict]
     
+    # Progress messages for streaming (list of status messages)
+    progress_messages: Optional[List[str]]
+    
     # Database session (not serialized)
     db: Session
 
@@ -203,6 +206,146 @@ def handle_create_event(state: AgentState) -> AgentState:
     logger.debug("Handling create event...")
     
     db = state["db"]
+    message = state.get("message", "").lower().strip()
+    conversation_history = state.get("conversation_history", "")
+    
+    # Check if user is requesting search to complete previous event info
+    search_keywords = ["search", "帮我search", "帮我搜索", "搜索", "查一下", "查找", "find", "look up"]
+    is_search_request = any(kw in message for kw in search_keywords)
+    
+    if is_search_request and settings.ENABLE_WEB_SEARCH:
+        # Extract event title from conversation history
+        # Look for patterns like "Cursor 2-Day AI Hackathon" or event names mentioned in previous messages
+        import re
+        
+        # Try to find quoted event names or common patterns
+        title_patterns = [
+            r'"([^"]+)"',  # Quoted text
+            r'"([^"]+)"',  # Chinese quotes
+            r'「([^」]+)」',  # Japanese quotes
+            r'Cursor[^"]*Hackathon',  # Specific event pattern
+            r'([A-Z][a-zA-Z0-9\s\-]+(?:Hackathon|Conference|Concert|Meeting|Event|Festival|Summit))',
+        ]
+        
+        event_title = None
+        for pattern in title_patterns:
+            match = re.search(pattern, conversation_history, re.IGNORECASE)
+            if match:
+                event_title = match.group(1) if match.lastindex else match.group(0)
+                break
+        
+        if event_title:
+            logger.info(f"User requested search for event: {event_title}")
+            progress_messages = [f"Searching for: {event_title}..."]
+            
+            try:
+                from services.search_service import (
+                    search_event_info_sync,
+                    extract_event_details_from_search_sync,
+                )
+                
+                progress_messages.append("Querying search engine...")
+                search_results = search_event_info_sync(query=event_title)
+                
+                if search_results:
+                    progress_messages.append(f"Found {len(search_results)} results, extracting details...")
+                    completed_info = extract_event_details_from_search_sync(
+                        search_results,
+                        partial_event={"title": event_title},
+                    )
+                    
+                    if completed_info and completed_info.start_time:
+                        progress_messages.append("Event information found! Creating event...")
+                        
+                        # Directly create event - be decisive, don't ask for confirmation
+                        try:
+                            db = state["db"]
+                            title = completed_info.event_name or event_title
+                            start_time = datetime.fromisoformat(completed_info.start_time)
+                            end_time = datetime.fromisoformat(completed_info.end_time) if completed_info.end_time else None
+                            location = completed_info.location or completed_info.venue_address
+                            description = completed_info.description or ""
+                            if completed_info.source_url:
+                                description += f"\n\n🔗 Source: {completed_info.source_url}"
+                            
+                            # Check for duplicates
+                            duplicate = check_duplicate_event(db, state["user_id"], title, start_time)
+                            if duplicate:
+                                return {
+                                    **state,
+                                    "response": f"⚠️ This event already exists: **{duplicate.title}** ({duplicate.start_time.strftime('%Y-%m-%d %H:%M')})",
+                                    "progress_messages": progress_messages,
+                                    "action_result": {"action": "create_event", "duplicate": True, "existing_event_id": duplicate.id},
+                                }
+                            
+                            # Create event
+                            event = Event(
+                                user_id=state["user_id"],
+                                title=title,
+                                start_time=start_time,
+                                end_time=end_time,
+                                location=location,
+                                description=description,
+                                source_type="agent",
+                                is_followed=True,
+                            )
+                            db.add(event)
+                            db.commit()
+                            db.refresh(event)
+                            
+                            logger.info(f"Created event from search: {event.title} (id={event.id})")
+                            
+                            # Build success response
+                            response_msg = f"✅ Event created from web search:\n\n"
+                            response_msg += f"📅 **{event.title}**\n"
+                            response_msg += f"⏰ Time: {event.start_time.strftime('%Y-%m-%d %H:%M')}"
+                            if event.end_time:
+                                response_msg += f" - {event.end_time.strftime('%H:%M')}"
+                            response_msg += "\n"
+                            if event.location:
+                                response_msg += f"📍 Location: {event.location}\n"
+                            
+                            from services.ics_service import generate_ics_content
+                            return {
+                                **state,
+                                "response": response_msg,
+                                "progress_messages": progress_messages,
+                                "action_result": {
+                                    "action": "create_event",
+                                    "event_id": event.id,
+                                    "events": [{
+                                        "id": event.id,
+                                        "title": event.title,
+                                        "start_time": event.start_time.isoformat(),
+                                        "end_time": event.end_time.isoformat() if event.end_time else None,
+                                        "location": event.location,
+                                        "ics_content": generate_ics_content(event),
+                                        "ics_download_url": f"/api/events/{event.id}/ics",
+                                    }],
+                                },
+                            }
+                        except Exception as e:
+                            logger.error(f"Failed to create event from search: {e}")
+                            progress_messages.append(f"Failed to create event: {str(e)}")
+                    else:
+                        progress_messages.append("Could not extract complete event details from search results")
+                else:
+                    progress_messages.append("No search results found")
+                
+                return {
+                    **state,
+                    "response": f"I searched for **{event_title}** but couldn't find specific event details. Please provide the date and time manually.",
+                    "progress_messages": progress_messages,
+                    "action_result": {"action": "create_event", "search_failed": True},
+                }
+            except Exception as e:
+                logger.warning(f"Search failed: {e}")
+                return {
+                    **state,
+                    "response": f"I tried to search for event information but encountered an error: {str(e)}. Please provide the details manually.",
+                    "action_result": {"action": "create_event", "search_error": str(e)},
+                }
+    
     images_base64 = []
     
     # Collect all images
@@ -476,16 +619,109 @@ def handle_create_event(state: AgentState) -> AgentState:
         
         event_data = json.loads(content.strip())
         
+        # Initialize progress messages
+        progress_messages = state.get("progress_messages") or []
+        
         # Check if LLM indicates information is incomplete
         if not event_data.get("complete", True):
             clarification = event_data.get("clarification_question")
             missing = event_data.get("missing_info", [])
             
-            if clarification:
-                logger.info(f"Event info incomplete, asking for clarification. Missing: {missing}")
+            logger.info(f"Event info incomplete, missing: {missing}")
+            
+            # Try web search to complete missing info
+            if settings.ENABLE_WEB_SEARCH:
+                title = event_data.get("title")
+                location = event_data.get("location")
+                
+                # Build search keywords
+                search_keywords = []
+                if title and title != "Unknown":
+                    search_keywords.append(title)
+                if location:
+                    search_keywords.append(location)
+                
+                if search_keywords:
+                    progress_messages.append(f"Searching for event information: {' '.join(search_keywords)}...")
+                    logger.info(f"Attempting web search for incomplete event: {search_keywords}")
+                    
+                    try:
+                        from services.search_service import (
+                            search_event_info_sync,
+                            extract_event_details_from_search_sync,
+                        )
+                        
+                        # Search web
+                        progress_messages.append("Querying search engine...")
+                        search_results = search_event_info_sync(
+                            query=" ".join(search_keywords),
+                            location_hint=location,
+                        )
+                        
+                        if search_results:
+                            progress_messages.append(f"Found {len(search_results)} results, extracting details...")
+                            logger.info(f"Web search returned {len(search_results)} results")
+                            
+                            # Extract event details
+                            completed_info = extract_event_details_from_search_sync(
+                                search_results,
+                                partial_event={
+                                    "title": title or "",
+                                    "location_hint": location or "",
+                                },
+                            )
+                            
+                            if completed_info:
+                                progress_messages.append("Event information found, updating...")
+                                logger.info(f"Search completed event info: {completed_info.event_name}")
+                                
+                                # Merge search results with event_data
+                                if completed_info.event_name and (not title or len(completed_info.event_name) > len(title)):
+                                    event_data["title"] = completed_info.event_name
+                                if completed_info.start_time and not event_data.get("start_time"):
+                                    event_data["start_time"] = completed_info.start_time
+                                if completed_info.end_time and not event_data.get("end_time"):
+                                    event_data["end_time"] = completed_info.end_time
+                                if completed_info.location and not event_data.get("location"):
+                                    event_data["location"] = completed_info.location
+                                if completed_info.venue_address:
+                                    if event_data.get("location"):
+                                        event_data["location"] = f"{event_data['location']}, {completed_info.venue_address}"
+                                    else:
+                                        event_data["location"] = completed_info.venue_address
+                                if completed_info.description and not event_data.get("description"):
+                                    event_data["description"] = completed_info.description
+                                
+                                # If we have required fields, directly create event - be decisive
+                                if event_data.get("title") and event_data.get("start_time"):
+                                    progress_messages.append("Event information found! Creating event...")
+                                    logger.info("Web search completed, directly creating event")
+                                    
+                                    # Add source URL to description
+                                    if completed_info.source_url:
+                                        desc = event_data.get("description", "") or ""
+                                        event_data["description"] = f"{desc}\n\n🔗 Source: {completed_info.source_url}".strip()
+                                    
+                                    # event_data is now complete, let the normal creation flow handle it
+                                    # Mark as complete so we don't ask for clarification
+                                    event_data["complete"] = True
+                            else:
+                                progress_messages.append("Could not extract event details from search results")
+                                logger.info("Failed to extract event details from search results")
+                        else:
+                            progress_messages.append("No search results found")
+                            logger.info("Web search returned no results")
+                    except Exception as e:
+                        progress_messages.append(f"Search failed: {str(e)}")
+                        logger.warning(f"Web search failed: {e}")
+            
+            # If still incomplete after search, ask for clarification
+            if not event_data.get("complete", True) and clarification:
+                logger.info(f"Event info still incomplete after search, asking for clarification")
                 return {
                     **state,
                     "response": clarification,
+                    "progress_messages": progress_messages,
                     "action_result": {
                         "action": "create_event",
                         "need_more_info": True,
@@ -496,6 +732,7 @@ def handle_create_event(state: AgentState) -> AgentState:
                             "location": event_data.get("location"),
                             "description": event_data.get("description"),
                         },
+                        "search_attempted": len(progress_messages) > 0,
                     },
                 }
         
@@ -606,6 +843,7 @@ def handle_create_event(state: AgentState) -> AgentState:
         return {
             **state,
             "response": response_text,
+            "progress_messages": progress_messages,
             "action_result": {
                 "action": "create_event",
                 "event_id": event.id,
@@ -613,6 +851,7 @@ def handle_create_event(state: AgentState) -> AgentState:
                 "ics_content": ics_content,
                 "ics_download_url": f"/api/events/{event.id}/ics",
                 "recurrence_count": recurrence_count,
+                "search_used": len(progress_messages) > 0,
             },
         }
         
@@ -1007,6 +1246,9 @@ def handle_enrich_event(state: AgentState) -> AgentState:
         
         logger.info(f"Enriching event: {event.title} (id={event.id})")
         
+        # Initialize progress messages
+        progress_messages = state.get("progress_messages") or []
+        
         # Build search query from event information
         search_keywords = [event.title]
         if event.location:
@@ -1015,29 +1257,35 @@ def handle_enrich_event(state: AgentState) -> AgentState:
             search_keywords.append(event.start_time.strftime("%Y-%m-%d"))
         
         # Search for event information
-        import asyncio
         from services.search_service import (
-            search_event_info,
-            extract_event_details_from_search,
+            search_event_info_sync,
+            extract_event_details_from_search_sync,
             merge_event_info,
         )
         
+        progress_messages.append(f"Searching for: {event.title}...")
         logger.info(f"Searching web for event: {' '.join(search_keywords)}")
         
         try:
-            # Run async search in sync context
-            search_results = asyncio.run(search_event_info(
+            progress_messages.append("Querying search engine...")
+            
+            # Call sync search function directly
+            search_results = search_event_info_sync(
                 query=" ".join(search_keywords),
                 location_hint=event.location,
                 date_hint=event.start_time.strftime("%Y-%m-%d") if event.start_time else None,
-            ))
+            )
             
             if not search_results:
+                progress_messages.append("No search results found")
                 return {
                     **state,
                     "response": f"I searched for more information about **{event.title}**, but couldn't find additional details online. The event information remains unchanged.",
+                    "progress_messages": progress_messages,
                     "action_result": {"action": "enrich_event", "event_id": event.id, "enriched": False},
                 }
+            
+            progress_messages.append(f"Found {len(search_results)} results, extracting details...")
             
             # Extract event details from search results
             partial_event = {
@@ -1046,17 +1294,22 @@ def handle_enrich_event(state: AgentState) -> AgentState:
                 "location_hint": event.location or "",
             }
             
-            completed_info = asyncio.run(extract_event_details_from_search(
+            # Call sync extraction function directly
+            completed_info = extract_event_details_from_search_sync(
                 search_results,
                 partial_event=partial_event,
-            ))
+            )
             
             if not completed_info:
+                progress_messages.append("Could not extract event details from search results")
                 return {
                     **state,
                     "response": f"I searched for more information about **{event.title}**, but couldn't extract structured details from the search results. The event information remains unchanged.",
+                    "progress_messages": progress_messages,
                     "action_result": {"action": "enrich_event", "event_id": event.id, "enriched": False},
                 }
+            
+            progress_messages.append("Event information found, updating...")
             
             # Merge search results with existing event
             original_data = {
@@ -1116,13 +1369,17 @@ def handle_enrich_event(state: AgentState) -> AgentState:
                 response_text += f"💰 **Price**: {completed_info.price_range}\n"
             
             if not updated_fields:
+                progress_messages.append("Existing information is already complete")
                 response_text = f"I searched for more information about **{event.title}**, but the existing information is already complete. No updates were made."
+            else:
+                progress_messages.append(f"Updated {len(updated_fields)} field(s): {', '.join(updated_fields)}")
             
             response_text += f"\n🔗 Source: {completed_info.source_url}"
             
             return {
                 **state,
                 "response": response_text,
+                "progress_messages": progress_messages,
                 "action_result": {
                     "action": "enrich_event",
                     "event_id": event.id,
@@ -1133,9 +1390,11 @@ def handle_enrich_event(state: AgentState) -> AgentState:
             
         except Exception as search_error:
             logger.error(f"Web search failed during enrichment: {search_error}", exc_info=True)
+            progress_messages.append(f"Search failed: {str(search_error)}")
             return {
                 **state,
                 "response": f"I tried to search for more information about **{event.title}**, but encountered an error. The event information remains unchanged.",
+                "progress_messages": progress_messages,
                 "action_result": {"action": "enrich_event", "event_id": event.id, "error": str(search_error)},
             }
         
@@ -1421,10 +1680,20 @@ async def run_agent_stream(
                 "update_event": "Updating event...",
                 "delete_event": "Deleting event...",
                 "reject": "Understanding your needs...",
+                "enrich_event": "Searching for event information...",
             }
             yield {"type": "thinking", "message": thinking_messages.get(intent, "Processing...")}
+            
+            # Add progress_messages to initial state
+            initial_state["progress_messages"] = []
+            
             agent = create_agent_graph()
             result = agent.invoke(initial_state)
+            
+            # Send progress messages (e.g., search progress)
+            progress_messages = result.get("progress_messages", [])
+            for msg in progress_messages:
+                yield {"type": "status", "message": msg}
             
             # Send action result if available
             if result.get("action_result"):
