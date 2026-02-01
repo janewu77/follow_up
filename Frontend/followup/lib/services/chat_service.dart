@@ -231,4 +231,29 @@ class ChatService {
 
     return data;
   }
+
+  /// Clear chat history on server
+  /// DELETE /api/chat/{session_id}
+  static Future<void> clearHistory(String sessionId) async {
+    final token = await AuthService.getToken();
+    if (token == null) {
+      throw Exception('Not authenticated');
+    }
+
+    final response = await http.delete(
+      Uri.parse('${ApiConfig.baseUrl}/api/chat/$sessionId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      // Clear local session if it matches
+      if (_sessionId == sessionId) {
+        _sessionId = null;
+      }
+    } else {
+      throw Exception('Failed to clear history: ${response.statusCode}');
+    }
+  }
 }
