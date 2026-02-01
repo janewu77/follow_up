@@ -289,6 +289,7 @@ follow_up/
 
 ## Documentation
 
+- [Frontend README](Frontend/followup/README.md) — Flutter app setup and development guide ([中文版](Frontend/followup/README_zh.md))
 - [Backend README](Backend/README.md) — Backend architecture and API details
 - [Backend Development Rules](Backend/AGENTS.md) — Development guidelines
 - [Product Specification](Docs/production.md) — Full product documentation
