@@ -3,22 +3,36 @@ import '../models/event.dart';
 
 // Mock 服务（开发用）
 class MockService {
+  // 当前登录用户（Mock）
+  static User? _currentUser;
+
+  // 模拟获取当前用户
+  static Future<User> getCurrentUser() async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (_currentUser == null) {
+      throw Exception("未登录");
+    }
+    return _currentUser!;
+  }
+
   // 模拟登录
   static Future<LoginResponse> login(String username, String password) async {
     await Future.delayed(const Duration(milliseconds: 500));
 
     if (username == "alice" && password == "alice123") {
+      _currentUser = User(id: 1, username: "alice");
       return LoginResponse(
         accessToken: "mock_token_12345",
         tokenType: "bearer",
-        user: User(id: 1, username: "alice"),
+        user: _currentUser!,
       );
     }
     if (username == "demo" && password == "demo123") {
+      _currentUser = User(id: 2, username: "demo");
       return LoginResponse(
         accessToken: "mock_token_demo",
         tokenType: "bearer",
-        user: User(id: 2, username: "demo"),
+        user: _currentUser!,
       );
     }
     throw Exception("用户名或密码错误");

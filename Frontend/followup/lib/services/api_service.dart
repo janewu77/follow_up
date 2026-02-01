@@ -43,6 +43,26 @@ class ApiService {
     }
   }
 
+  // 获取当前用户信息
+  static Future<User> getCurrentUser() async {
+    if (useMock) {
+      return MockService.getCurrentUser();
+    }
+
+    final response = await http.get(
+      Uri.parse("${ApiConfig.baseUrl}/api/user/me"),
+      headers: await _authHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      return User.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 401) {
+      throw Exception("未登录或登录已过期");
+    } else {
+      throw Exception("获取用户信息失败");
+    }
+  }
+
   // 解析日程
   static Future<ParseResponse> parseEvent({
     required String inputType,
