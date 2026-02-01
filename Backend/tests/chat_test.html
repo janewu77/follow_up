@@ -103,6 +103,12 @@
                     >
                         测试连接
                     </button>
+                    <button 
+                        id="listEventsBtn"
+                        class="px-3 py-1 text-sm text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors duration-200 cursor-pointer"
+                    >
+                        事件列表
+                    </button>
                 </div>
             </div>
         </div>
@@ -159,6 +165,31 @@
 
         <!-- 状态栏 -->
         <div id="statusBar" class="mt-4 text-sm text-slate-500 text-center"></div>
+
+        <!-- 事件列表面板 -->
+        <div id="eventsPanel" class="hidden mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-slate-900">Events List</h2>
+                <div class="flex gap-2">
+                    <button 
+                        id="refreshEventsBtn"
+                        class="px-3 py-1 text-sm text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors duration-200 cursor-pointer"
+                    >
+                        Refresh
+                    </button>
+                    <button 
+                        id="closeEventsPanelBtn"
+                        class="px-3 py-1 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors duration-200 cursor-pointer"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+            <div id="eventsCount" class="text-sm text-slate-500 mb-3"></div>
+            <div id="eventsList" class="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+                <!-- Events will be rendered here -->
+            </div>
+        </div>
     </div>
 
     <script>
@@ -212,6 +243,11 @@
             
             // 绑定清除对话按钮
             document.getElementById('clearChatBtn').addEventListener('click', clearChat);
+            
+            // 绑定事件列表按钮
+            document.getElementById('listEventsBtn').addEventListener('click', toggleEventsPanel);
+            document.getElementById('refreshEventsBtn').addEventListener('click', loadEventsList);
+            document.getElementById('closeEventsPanelBtn').addEventListener('click', closeEventsPanel);
             
             // 绑定键盘事件 - 回车发送消息
             document.getElementById('messageInput').addEventListener('keydown', handleKeyDown);
@@ -845,7 +881,7 @@
         // 清除对话
         async function clearChat() {
             if (!sessionId) {
-                alert('没有活动会话');
+                alert('No active session');
                 return;
             }
 
@@ -861,21 +897,185 @@
                 });
 
                 if (response.ok) {
-                    // 重置 sessionId（生成新的 UUID）
+                    // Reset sessionId (generate new UUID)
                     sessionId = generateUUID();
                     console.log('New sessionId after clear:', sessionId);
                     document.getElementById('messages').innerHTML = `
                         <div class="text-center text-slate-400 text-sm py-8">
-                            对话已清除
+                            Conversation cleared
                         </div>
                     `;
-                    updateStatus('对话已清除');
+                    updateStatus('Conversation cleared');
                 } else {
-                    alert('清除失败');
+                    alert('Clear failed');
                 }
             } catch (error) {
-                alert(`错误: ${error.message}`);
+                alert(`Error: ${error.message}`);
             }
+        }
+
+        // Toggle events panel
+        function toggleEventsPanel() {
+            const panel = document.getElementById('eventsPanel');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                loadEventsList();
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+
+        // Close events panel
+        function closeEventsPanel() {
+            document.getElementById('eventsPanel').classList.add('hidden');
+        }
+
+        // Load events list
+        async function loadEventsList() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const token = document.getElementById('token').value.trim();
+
+            if (!apiUrl || !token) {
+                alert('Please enter API URL and Token');
+                return;
+            }
+
+            const eventsList = document.getElementById('eventsList');
+            const eventsCount = document.getElementById('eventsCount');
+            
+            eventsList.innerHTML = '<div class="text-center text-slate-400 py-4">Loading...</div>';
+            eventsCount.textContent = '';
+
+            try {
+                const response = await fetch(`${apiUrl}/api/events`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                const events = data.events || [];
+
+                eventsCount.textContent = `Total: ${events.length} event(s)`;
+
+                if (events.length === 0) {
+                    eventsList.innerHTML = '<div class="text-center text-slate-400 py-4">No events found</div>';
+                    return;
+                }
+
+                eventsList.innerHTML = events.map(event => `
+                    <div class="p-4 bg-slate-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-medium text-slate-900">${escapeHtml(event.title)}</h3>
+                                    ${event.is_followed ? '<span class="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">Followed</span>' : ''}
+                                    ${event.recurrence_rule ? '<span class="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">Recurring</span>' : ''}
+                                </div>
+                                <div class="mt-1 text-sm text-slate-600">
+                                    <span class="inline-flex items-center gap-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        ${formatDateTime(event.start_time)}
+                                        ${event.end_time ? ' - ' + formatTime(event.end_time) : ''}
+                                    </span>
+                                </div>
+                                ${event.location ? `
+                                    <div class="mt-1 text-sm text-slate-500">
+                                        <span class="inline-flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            </svg>
+                                            ${escapeHtml(event.location)}
+                                        </span>
+                                    </div>
+                                ` : ''}
+                                ${event.description ? `
+                                    <div class="mt-2 text-sm text-slate-500">${escapeHtml(event.description)}</div>
+                                ` : ''}
+                            </div>
+                            <div class="flex gap-1 ml-2">
+                                <button 
+                                    onclick="deleteEvent(${event.id}, '${escapeHtml(event.title).replace(/'/g, "\\'")}');"
+                                    class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                    title="Delete"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-2 text-xs text-slate-400">
+                            ID: ${event.id} | Source: ${event.source_type || 'manual'} | Created: ${formatDateTime(event.created_at)}
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Load events error:', error);
+                eventsList.innerHTML = `<div class="text-center text-red-500 py-4">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Delete event
+        async function deleteEvent(eventId, eventTitle) {
+            if (!confirm(`Delete event "${eventTitle}"?`)) {
+                return;
+            }
+
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const token = document.getElementById('token').value.trim();
+
+            try {
+                const response = await fetch(`${apiUrl}/api/events/${eventId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (response.ok) {
+                    updateStatus(`Event deleted: ${eventTitle}`);
+                    loadEventsList();
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+            } catch (error) {
+                console.error('Delete event error:', error);
+                alert(`Delete failed: ${error.message}`);
+            }
+        }
+
+        // Format date time
+        function formatDateTime(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        }
+
+        // Format time only
+        function formatTime(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
         }
     </script>
 </body>
