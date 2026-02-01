@@ -16,7 +16,7 @@ FollowUP is an intelligent calendar assistant that helps you achieve Work-Life B
 |-------|------------|
 | **Frontend** | Flutter (iOS / Android / Web) |
 | **Backend** | Python FastAPI + SQLAlchemy |
-| **AI/LLM** | LangChain + LangGraph + OpenAI GPT-4o |
+| **AI/LLM** | LangChain + LangGraph + OpenAI API (model configurable) |
 | **Database** | SQLite (dev) / PostgreSQL (prod) |
 | **Hosting** | Railway |
 
@@ -61,7 +61,8 @@ flowchart TB
     end
 
     subgraph Services["Services"]
-        LLMService["LLM Service\n(OpenAI GPT-4o)"]
+        LLMService["LLM Service\n(OpenAI API; model configurable)"]
+        WebSearch["Web Search\n(Tavily, fallback: SerpAPI)"]
         Memory["Conversation Memory"]
     end
 
@@ -73,11 +74,81 @@ flowchart TB
     ChatRouter --> Agent
     ParseRouter --> LLMService
     Agent --> LLMService
+    LLMService --> WebSearch
+    WebSearch --> LLMService
     Agent --> Memory
     Memory --> DB
     Handlers --> EventsRouter
     EventsRouter --> DB
 ```
+
+**Web search enrichment**: When event info is incomplete (e.g., blurry posters), the backend can enrich details via web search, using **Tavily first** and falling back to **SerpAPI**.
+
+---
+
+## Details
+
+Add anything else you want to share: architecture diagrams, screenshots, challenges faced, future plans, etc.
+
+### Agent architecture
+
+```mermaid
+flowchart TB
+    Client[FlutterClient] --> API[FastAPI]
+
+    subgraph Agent[LangGraphAgent]
+        Intent[IntentClassifier]
+        Chat[ChatHandler]
+        Create[CreateEventHandler]
+        Query[QueryEventHandler]
+        Update[UpdateEventHandler]
+        Delete[DeleteEventHandler]
+        Reject[RejectHandler]
+
+        Intent --> Chat
+        Intent --> Create
+        Intent --> Query
+        Intent --> Update
+        Intent --> Delete
+        Intent --> Reject
+    end
+
+    subgraph Services[Services]
+        LLM[LLMService_OpenAIAPI_ModelConfigurable]
+        Search[WebSearch_TavilyThenSerpAPI]
+        Memory[ConversationMemory_DB]
+        Events[EventsCRUD_DB]
+    end
+
+    API --> Agent
+    Agent --> LLM
+    Agent --> Search
+    Agent --> Memory
+    Agent --> Events
+```
+
+### Challenges faced
+
+1. **Users take random photos** (low-signal or irrelevant images)
+   - We handle this with a **relevance-first flow**: extract what we can, then ask a **single clarification question** when critical fields (time/location) are missing.
+   - If the content is not event-related, we **fail safely** (no event is created) and guide the user to provide a better poster/screenshot or add a short note.
+
+2. **Long-running context** (multi-turn conversations over time)
+   - We store conversation history per `session_id` in the database.
+   - For each request, we use a **sliding window** of recent turns (e.g., the last 10 messages) to keep prompts bounded.
+   - Future improvement: **summarize older context** into a compact memory when sessions get long.
+
+3. **Multiple images per request**
+   - The API supports both `image_base64` (single) and `images_base64` (multiple) for batch processing.
+   - We parse images in batch when possible, and fall back to per-image parsing to keep thumbnails and results consistent.
+   - Future improvement: better **event-to-image attribution** and stronger **deduplication** across images.
+
+### Future plans
+
+- **Voice**: voice input (STT) + voice editing.
+- **Real follow up**: a background bot that tracks event progress (ticket sales, time changes, new info) and notifies users.
+- **Light social**: share events (invites, links, ICS) with friends.
+- **Small groups**: family or group activities with shared/limited collaboration.
 
 ---
 
