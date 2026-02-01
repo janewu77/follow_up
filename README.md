@@ -11,19 +11,6 @@ FollowUP is an intelligent calendar assistant that helps you achieve Work-Life B
 **Capture any event. Add to calendar. Stay on track.**
 
 ---
-# FollowUP
-
-<!-- ![Cursor 2-Day AI Hackathon](https://ai-beavers.com/_next/image?url=%2Fimages%2Fhackathon-hero-20012026.png&w=1920&q=75) -->
-
-> **Never miss a moment that matters.**
-
-FollowUP is an intelligent calendar assistant that helps you achieve Work-Life Balance by automatically extracting events from text, images, and voice inputs. Every meeting, every gathering, every concert deserves your presence.
-
-![FollowUP](./Frontend/followup/assets/images/main_picture.png)
-
-**Capture any event. Add to calendar. Stay on track.**
-
----
 
 ## Tech Stack
 
