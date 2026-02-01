@@ -296,9 +296,9 @@ def handle_create_event(state: AgentState) -> AgentState:
                     for idx, event in enumerate(created_events, 1):
                         response_text += f"{idx}. **{event.title}** - {event.start_time.strftime('%Y-%m-%d %H:%M')}\n"
             
-            # If neither created nor duplicate, all events were duplicates
+            # If neither created nor duplicate, couldn't extract event info
             if not created_events and not duplicate_events:
-                response_text = "Sorry, couldn't extract valid event information from the image(s)."
+                response_text = "I looked at the image(s) you uploaded, but I couldn't find any event-related information (like dates, times, or event details).\n\nWhat would you like me to help you with?\n📅 Create a new event - just tell me the details\n🔍 View your existing events\n💬 Or describe what you see in the image and I'll try to help"
             
             # Generate ICS content for each created event
             from services.ics_service import generate_ics_content
@@ -419,8 +419,13 @@ def handle_create_event(state: AgentState) -> AgentState:
                     "action_result": {"action": "create_event", "need_more_info": True},
                 }
             
-            # Continue with text extraction if no events parsed and no clarification needed
-            logger.warning("Image parsing service returned no events, falling back to text extraction")
+            # If no events and no clarification question, ask user what they want to do
+            logger.warning("Image parsing service returned no events")
+            return {
+                **state,
+                "response": "I analyzed the image you uploaded, but I couldn't identify any event information (like dates, times, or event details).\n\nHow can I help you?\n📅 **Create an event** - Tell me the event details and I'll create it for you\n🔍 **View events** - See your upcoming schedule\n💬 **Describe the image** - Tell me what's in the image and what you'd like to do with it",
+                "action_result": {"action": "create_event", "no_event_found": True},
+            }
         except Exception as e:
             logger.warning(f"Image parsing service failed: {e}, falling back to text extraction", exc_info=True)
             # Continue with text extraction logic
@@ -611,7 +616,7 @@ def handle_create_event(state: AgentState) -> AgentState:
         
         has_image = state.get("image_base64") or state.get("images_base64")
         if has_image:
-            response_text = "I see you uploaded an image, but I couldn't extract complete event information from it.\n\nPlease tell me:\n📅 When is this event? (e.g., tomorrow at 3 PM)\n📍 Where is it? (optional)\n📝 Any other information to record?"
+            response_text = "I see you uploaded an image! I wasn't able to extract complete event information from it.\n\nWhat would you like me to do?\n📅 **Create an event** - Tell me the details (when, what, where)\n🔍 **View your events** - Check your schedule\n💬 **Describe the image** - Tell me what it shows and I'll help"
         else:
             response_text = "I'd like to help you create an event, but I need more information.\n\nPlease tell me:\n📅 When? (e.g., tomorrow at 3 PM)\n📝 What event? (e.g., team meeting)\n📍 Where? (optional)"
         
@@ -640,7 +645,7 @@ def handle_create_event(state: AgentState) -> AgentState:
         
         has_image = state.get("image_base64") or state.get("images_base64")
         if has_image:
-            response_text = "I see you uploaded an image, but encountered an error while processing it.\n\nPlease tell me:\n📅 When is this event?\n📍 Where is it?\n📝 Any other information to record?"
+            response_text = "I see you uploaded an image, but I had trouble processing it.\n\nHow can I help you?\n📅 **Create an event** - Just describe it (when, what, where)\n🔍 **View your events** - Check your schedule\n💬 **Try again** - Upload a different image or describe what you need"
         else:
             response_text = "I'd like to help you create an event, but I need more information.\n\nPlease tell me:\n📅 When? (e.g., tomorrow at 3 PM)\n📝 What event? (e.g., team meeting)\n📍 Where? (optional)"
         
