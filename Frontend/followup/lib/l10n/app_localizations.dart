@@ -1306,8 +1306,6 @@ abstract class AppLocalizations {
   /// **'My Events'**
   String get chatViewEvents;
 
-  // ============ Profile Page ============
-
   /// No description provided for @profile.
   ///
   /// In en, this message translates to:

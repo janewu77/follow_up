@@ -235,5 +235,16 @@
   "chatProcessing": "我在你的消息中发现了活动信息！需要我提取详情并添加到日历吗？",
   "chatExtractEvent": "提取活动",
   "chatUploadImage": "上传图片",
-  "chatViewEvents": "我的活动"
+  "chatViewEvents": "我的活动",
+
+  "profile": "个人信息",
+  "accountInfo": "账户信息",
+  "userId": "用户 ID",
+  "registeredAt": "注册时间",
+  "quickActions": "快捷操作",
+  "myEvents": "我的日程",
+  "aiAssistant": "AI 助手",
+  "loadFailed": "加载失败",
+  "retry": "重试",
+  "unableToGetUserInfo": "无法获取用户信息"
 }

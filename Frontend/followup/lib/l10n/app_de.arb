@@ -235,5 +235,16 @@
   "chatProcessing": "Ich habe Termininfos in Ihrer Nachricht gefunden! Soll ich die Details extrahieren und zu Ihrem Kalender hinzufügen?",
   "chatExtractEvent": "Termin extrahieren",
   "chatUploadImage": "Bild hochladen",
-  "chatViewEvents": "Meine Termine"
+  "chatViewEvents": "Meine Termine",
+
+  "profile": "Profil",
+  "accountInfo": "Kontoinformationen",
+  "userId": "Benutzer-ID",
+  "registeredAt": "Registriert am",
+  "quickActions": "Schnellaktionen",
+  "myEvents": "Meine Termine",
+  "aiAssistant": "KI-Assistent",
+  "loadFailed": "Laden fehlgeschlagen",
+  "retry": "Erneut versuchen",
+  "unableToGetUserInfo": "Benutzerinfo nicht verfügbar"
 }

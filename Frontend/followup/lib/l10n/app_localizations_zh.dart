@@ -620,8 +620,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get chatViewEvents => '我的活动';
 
-  // ============ Profile Page ============
-
   @override
   String get profile => '个人信息';
 

@@ -643,8 +643,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatViewEvents => 'My Events';
 
-  // ============ Profile Page ============
-
   @override
   String get profile => 'Profile';
 
