@@ -27,6 +27,7 @@ class _ChatPageState extends State<ChatPage> {
   bool _isTyping = false;
   String _currentResponse = '';
   String? _currentIntent;
+  Map<String, dynamic>? _currentActionResult;
   StreamSubscription<ChatEvent>? _streamSubscription;
   
   // Selected images for sending
@@ -238,6 +239,7 @@ class _ChatPageState extends State<ChatPage> {
       _isTyping = true;
       _currentResponse = '';
       _currentIntent = null;
+      _currentActionResult = null;
     });
 
     _scrollToBottom();
@@ -274,6 +276,10 @@ class _ChatPageState extends State<ChatPage> {
         case ChatEventType.status:
           // Could show status in UI if needed
           break;
+        case ChatEventType.thinking:
+          // AI is thinking - could show thinking status
+          // For now, treat similar to status
+          break;
         case ChatEventType.intent:
           _currentIntent = event.intent;
           break;
@@ -281,9 +287,15 @@ class _ChatPageState extends State<ChatPage> {
           _currentResponse += event.token ?? '';
           _scrollToBottom();
           break;
+        case ChatEventType.content:
+          // One-time complete content (non-streaming)
+          _currentResponse = event.content ?? event.message ?? '';
+          _scrollToBottom();
+          break;
         case ChatEventType.action:
           // Handle action result (e.g., created events)
           if (event.actionResult != null) {
+            _currentActionResult = event.actionResult;
             _handleActionResult(event.actionResult!);
           }
           break;
@@ -304,16 +316,24 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _handleActionResult(Map<String, dynamic> actionResult) {
-    // If events were created, show them
-    if (actionResult.containsKey('events')) {
-      final events = actionResult['events'] as List<dynamic>;
-      final eventCount = events.length;
+    final action = actionResult['action'] as String?;
+    
+    // Refresh events list when events are modified
+    if (action == 'create_event' || action == 'update_event' || action == 'delete_event') {
+      // Check if operation was successful (has event_id or event_ids)
+      final hasEventId = actionResult.containsKey('event_id') || actionResult.containsKey('event_ids');
+      final hasError = actionResult.containsKey('error');
+      final needMoreInfo = actionResult['need_more_info'] == true;
       
-      if (eventCount > 0) {
-        // The response message will include event details
-        // Could add special UI for events here
+      if (hasEventId && !hasError && !needMoreInfo) {
+        // Trigger events refresh in background
+        // Note: EventsProvider will be refreshed when user navigates to events page
+        debugPrint('Action completed: $action');
       }
     }
+    
+    // Log for debugging
+    debugPrint('Action result: $actionResult');
   }
 
   void _finishResponse() {
@@ -324,9 +344,11 @@ class _ChatPageState extends State<ChatPage> {
           isUser: false,
           timestamp: DateTime.now(),
           intent: _currentIntent,
+          actionResult: _currentActionResult,
         ));
         _currentResponse = '';
         _currentIntent = null;
+        _currentActionResult = null;
         _isTyping = false;
       });
       _scrollToBottom();
@@ -859,6 +881,7 @@ class ChatMessage {
   final String? intent;
   final bool isError;
   final List<XFile>? images;
+  final Map<String, dynamic>? actionResult;
 
   ChatMessage({
     required this.content,
@@ -867,6 +890,7 @@ class ChatMessage {
     this.intent,
     this.isError = false,
     this.images,
+    this.actionResult,
   });
 }
 

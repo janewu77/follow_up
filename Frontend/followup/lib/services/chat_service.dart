@@ -7,8 +7,10 @@ import 'auth_service.dart';
 /// Chat event types from SSE stream
 enum ChatEventType {
   status,
+  thinking,  // AI is thinking (shows "💭 thinking...")
   intent,
   token,
+  content,   // One-time complete content (non-streaming)
   action,
   done,
   error,
@@ -20,6 +22,7 @@ class ChatEvent {
   final String? message;
   final String? intent;
   final String? token;
+  final String? content;  // Complete content for non-streaming response
   final Map<String, dynamic>? actionResult;
   final String? sessionId;
   final String? error;
@@ -29,6 +32,7 @@ class ChatEvent {
     this.message,
     this.intent,
     this.token,
+    this.content,
     this.actionResult,
     this.sessionId,
     this.error,
@@ -42,11 +46,17 @@ class ChatEvent {
       case 'status':
         type = ChatEventType.status;
         break;
+      case 'thinking':
+        type = ChatEventType.thinking;
+        break;
       case 'intent':
         type = ChatEventType.intent;
         break;
       case 'token':
         type = ChatEventType.token;
+        break;
+      case 'content':
+        type = ChatEventType.content;
         break;
       case 'action':
         type = ChatEventType.action;
@@ -66,6 +76,7 @@ class ChatEvent {
       message: json['message'] as String?,
       intent: json['intent'] as String?,
       token: json['token'] as String?,
+      content: json['content'] as String?,
       actionResult: json['action_result'] as Map<String, dynamic>?,
       sessionId: json['session_id'] as String?,
       error: json['error'] as String?,
