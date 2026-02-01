@@ -465,6 +465,29 @@ def handle_create_event(state: AgentState) -> AgentState:
         
         event_data = json.loads(content.strip())
         
+        # Check if LLM indicates information is incomplete
+        if not event_data.get("complete", True):
+            clarification = event_data.get("clarification_question")
+            missing = event_data.get("missing_info", [])
+            
+            if clarification:
+                logger.info(f"Event info incomplete, asking for clarification. Missing: {missing}")
+                return {
+                    **state,
+                    "response": clarification,
+                    "action_result": {
+                        "action": "create_event",
+                        "need_more_info": True,
+                        "missing_info": missing,
+                        "partial_data": {
+                            "title": event_data.get("title"),
+                            "start_time": event_data.get("start_time"),
+                            "location": event_data.get("location"),
+                            "description": event_data.get("description"),
+                        },
+                    },
+                }
+        
         # Check required fields
         if "start_time" not in event_data or not event_data["start_time"]:
             raise ValueError("Missing required field: start_time")
