@@ -39,24 +39,64 @@ def migrate_events_table():
             events_table_exists = result.scalar() is not None
             
             if events_table_exists:
-                # 检查 source_thumbnail 列是否存在
+                # Check and add source_thumbnail column
                 result = db.execute(text("""
                     SELECT column_name 
                     FROM information_schema.columns 
                     WHERE table_name = 'events' AND column_name = 'source_thumbnail'
                 """))
-                column_exists = result.scalar() is not None
-                
-                if not column_exists:
+                if result.scalar() is None:
                     logger.info("Adding source_thumbnail column to events table...")
-                    db.execute(text("""
-                        ALTER TABLE events 
-                        ADD COLUMN source_thumbnail TEXT NULL
-                    """))
+                    db.execute(text("ALTER TABLE events ADD COLUMN source_thumbnail TEXT NULL"))
                     db.commit()
                     logger.info("Successfully added source_thumbnail column")
-                else:
-                    logger.debug("source_thumbnail column already exists")
+                
+                # Check and add recurrence_rule column
+                result = db.execute(text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'events' AND column_name = 'recurrence_rule'
+                """))
+                if result.scalar() is None:
+                    logger.info("Adding recurrence_rule column to events table...")
+                    db.execute(text("ALTER TABLE events ADD COLUMN recurrence_rule VARCHAR(255) NULL"))
+                    db.commit()
+                    logger.info("Successfully added recurrence_rule column")
+                
+                # Check and add recurrence_end column
+                result = db.execute(text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'events' AND column_name = 'recurrence_end'
+                """))
+                if result.scalar() is None:
+                    logger.info("Adding recurrence_end column to events table...")
+                    db.execute(text("ALTER TABLE events ADD COLUMN recurrence_end TIMESTAMP NULL"))
+                    db.commit()
+                    logger.info("Successfully added recurrence_end column")
+                
+                # Check and add parent_event_id column
+                result = db.execute(text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'events' AND column_name = 'parent_event_id'
+                """))
+                if result.scalar() is None:
+                    logger.info("Adding parent_event_id column to events table...")
+                    db.execute(text("""
+                        ALTER TABLE events 
+                        ADD COLUMN parent_event_id INTEGER NULL
+                    """))
+                    # Add foreign key constraint
+                    db.execute(text("""
+                        ALTER TABLE events 
+                        ADD CONSTRAINT fk_events_parent_event 
+                        FOREIGN KEY (parent_event_id) REFERENCES events(id) ON DELETE CASCADE
+                    """))
+                    # Create index
+                    db.execute(text("CREATE INDEX idx_events_parent_event_id ON events(parent_event_id)"))
+                    db.commit()
+                    logger.info("Successfully added parent_event_id column")
             else:
                 logger.debug("events table does not exist yet, will be created by init_db()")
             
