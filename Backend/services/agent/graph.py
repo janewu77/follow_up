@@ -934,6 +934,220 @@ def handle_query_event(state: AgentState) -> AgentState:
     }
 
 
+def handle_enrich_event(state: AgentState) -> AgentState:
+    """Handle event enrichment - search for and add more information to existing event"""
+    logger.debug("Handling enrich event...")
+    
+    db = state["db"]
+    user_id = state["user_id"]
+    
+    # Check if web search is enabled
+    if not settings.ENABLE_WEB_SEARCH:
+        return {
+            **state,
+            "response": "Web search is currently disabled. Please configure SERPAPI_KEY or TAVILY_API_KEY to enable event enrichment.",
+            "action_result": {"action": "enrich_event", "error": "search_disabled"},
+        }
+    
+    # Get user's event list
+    events = db.query(Event).filter(Event.user_id == user_id).order_by(Event.start_time).all()
+    
+    if not events:
+        return {
+            **state,
+            "response": "You don't have any events to enrich. Would you like me to create one for you?",
+            "action_result": {"action": "enrich_event", "error": "no_events"},
+        }
+    
+    # Use LLM to match target event
+    llm = get_llm()
+    events_list = json.dumps([
+        {
+            "id": e.id,
+            "title": e.title,
+            "start_time": e.start_time.isoformat(),
+            "location": e.location,
+        }
+        for e in events
+    ], ensure_ascii=False)
+    
+    match_prompt = EVENT_MATCH_PROMPT.format_messages(
+        events_list=events_list,
+        user_description=state["message"],
+        conversation_history=state.get("conversation_history", ""),
+    )
+    
+    match_response = llm.invoke(match_prompt)
+    
+    try:
+        content = match_response.content
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0]
+        
+        match_result = json.loads(content.strip())
+        matched_id = match_result.get("matched_event_id")
+        
+        if not matched_id:
+            return {
+                **state,
+                "response": "Sorry, I couldn't find a matching event to enrich. Please describe the event you want to search for in more detail.",
+                "action_result": {"action": "enrich_event", "error": "no_match"},
+            }
+        
+        # Get target event
+        event = db.query(Event).filter(Event.id == matched_id, Event.user_id == user_id).first()
+        if not event:
+            return {
+                **state,
+                "response": "Sorry, event not found.",
+                "action_result": {"action": "enrich_event", "error": "event_not_found"},
+            }
+        
+        logger.info(f"Enriching event: {event.title} (id={event.id})")
+        
+        # Build search query from event information
+        search_keywords = [event.title]
+        if event.location:
+            search_keywords.append(event.location)
+        if event.start_time:
+            search_keywords.append(event.start_time.strftime("%Y-%m-%d"))
+        
+        # Search for event information
+        import asyncio
+        from services.search_service import (
+            search_event_info,
+            extract_event_details_from_search,
+            merge_event_info,
+        )
+        
+        logger.info(f"Searching web for event: {' '.join(search_keywords)}")
+        
+        try:
+            # Run async search in sync context
+            search_results = asyncio.run(search_event_info(
+                query=" ".join(search_keywords),
+                location_hint=event.location,
+                date_hint=event.start_time.strftime("%Y-%m-%d") if event.start_time else None,
+            ))
+            
+            if not search_results:
+                return {
+                    **state,
+                    "response": f"I searched for more information about **{event.title}**, but couldn't find additional details online. The event information remains unchanged.",
+                    "action_result": {"action": "enrich_event", "event_id": event.id, "enriched": False},
+                }
+            
+            # Extract event details from search results
+            partial_event = {
+                "title": event.title,
+                "date_hint": event.start_time.strftime("%Y-%m-%d") if event.start_time else None,
+                "location_hint": event.location or "",
+            }
+            
+            completed_info = asyncio.run(extract_event_details_from_search(
+                search_results,
+                partial_event=partial_event,
+            ))
+            
+            if not completed_info:
+                return {
+                    **state,
+                    "response": f"I searched for more information about **{event.title}**, but couldn't extract structured details from the search results. The event information remains unchanged.",
+                    "action_result": {"action": "enrich_event", "event_id": event.id, "enriched": False},
+                }
+            
+            # Merge search results with existing event
+            original_data = {
+                "title": event.title,
+                "start_time": event.start_time.isoformat() if event.start_time else None,
+                "end_time": event.end_time.isoformat() if event.end_time else None,
+                "location": event.location,
+                "description": event.description,
+            }
+            
+            merged_data = merge_event_info(original_data, completed_info)
+            
+            # Update event with enriched information
+            updated_fields = []
+            if merged_data.get("title") and merged_data["title"] != event.title:
+                event.title = merged_data["title"]
+                updated_fields.append("title")
+            
+            if merged_data.get("location") and merged_data["location"] != (event.location or ""):
+                event.location = merged_data["location"]
+                updated_fields.append("location")
+            
+            if merged_data.get("description") and merged_data["description"] != (event.description or ""):
+                # Merge descriptions if both exist
+                if event.description:
+                    event.description = f"{event.description}\n\nAdditional information: {merged_data['description']}"
+                else:
+                    event.description = merged_data["description"]
+                updated_fields.append("description")
+            
+            # Update venue address if available
+            if completed_info.venue_address and completed_info.venue_address != (event.location or ""):
+                if event.location:
+                    event.location = f"{event.location}, {completed_info.venue_address}"
+                else:
+                    event.location = completed_info.venue_address
+                updated_fields.append("venue_address")
+            
+            db.commit()
+            db.refresh(event)
+            
+            logger.info(f"Enriched event: {event.title} (id={event.id}), updated fields: {updated_fields}")
+            
+            # Build response
+            response_text = f"I've enriched **{event.title}** with additional information from the web:\n\n"
+            
+            if "title" in updated_fields:
+                response_text += f"📝 **Title**: {event.title}\n"
+            if "location" in updated_fields or "venue_address" in updated_fields:
+                response_text += f"📍 **Location**: {event.location}\n"
+            if "description" in updated_fields:
+                response_text += f"📄 **Description**: {event.description[:100]}{'...' if len(event.description) > 100 else ''}\n"
+            
+            if completed_info.ticket_url:
+                response_text += f"🎫 **Ticket URL**: {completed_info.ticket_url}\n"
+            if completed_info.price_range:
+                response_text += f"💰 **Price**: {completed_info.price_range}\n"
+            
+            if not updated_fields:
+                response_text = f"I searched for more information about **{event.title}**, but the existing information is already complete. No updates were made."
+            
+            response_text += f"\n🔗 Source: {completed_info.source_url}"
+            
+            return {
+                **state,
+                "response": response_text,
+                "action_result": {
+                    "action": "enrich_event",
+                    "event_id": event.id,
+                    "enriched": True,
+                    "updated_fields": updated_fields,
+                },
+            }
+            
+        except Exception as search_error:
+            logger.error(f"Web search failed during enrichment: {search_error}", exc_info=True)
+            return {
+                **state,
+                "response": f"I tried to search for more information about **{event.title}**, but encountered an error. The event information remains unchanged.",
+                "action_result": {"action": "enrich_event", "event_id": event.id, "error": str(search_error)},
+            }
+        
+    except Exception as e:
+        logger.error(f"Failed to enrich event: {e}", exc_info=True)
+        return {
+            **state,
+            "response": "Sorry, an error occurred while enriching the event. Please try again later.",
+            "action_result": {"action": "enrich_event", "error": str(e)},
+        }
+
+
 def handle_reject(state: AgentState) -> AgentState:
     """Handle unclear requests - friendly user inquiry"""
     logger.debug("Handling unclear request with friendly response...")
@@ -971,6 +1185,8 @@ def route_by_intent(state: AgentState) -> str:
         return "update_event"
     elif intent == "delete_event":
         return "delete_event"
+    elif intent == "enrich_event":
+        return "enrich_event"
     elif intent == "reject":
         return "reject"
     else:
@@ -994,6 +1210,7 @@ def create_agent_graph() -> StateGraph:
     graph.add_node("query_event", handle_query_event)
     graph.add_node("update_event", handle_update_event)
     graph.add_node("delete_event", handle_delete_event)
+    graph.add_node("enrich_event", handle_enrich_event)
     graph.add_node("reject", handle_reject)
     
     # Set entry point
@@ -1009,6 +1226,7 @@ def create_agent_graph() -> StateGraph:
             "query_event": "query_event",
             "update_event": "update_event",
             "delete_event": "delete_event",
+            "enrich_event": "enrich_event",
             "reject": "reject",
         }
     )
@@ -1019,6 +1237,7 @@ def create_agent_graph() -> StateGraph:
     graph.add_edge("query_event", END)
     graph.add_edge("update_event", END)
     graph.add_edge("delete_event", END)
+    graph.add_edge("enrich_event", END)
     graph.add_edge("reject", END)
     
     return graph.compile()

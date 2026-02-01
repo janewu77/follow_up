@@ -14,6 +14,7 @@ INTENT_CLASSIFIER_SYSTEM = """You are an intent classifier for a smart calendar 
 3. **query_event** - Query events: User wants to view, query, or understand their schedule
 4. **update_event** - Update event: User wants to modify existing event information (time, location, title, etc.)
 5. **delete_event** - Delete event: User wants to cancel/delete an existing event
+6. **enrich_event** - Enrich event: User wants to search for and add more information to an existing event (e.g., "search for more info about this event", "add details to this event", "find more information about the concert")
 
 ⚠️ Important principles:
 - **Actively understand**: Try to understand user intent, don't give up easily
@@ -27,6 +28,7 @@ Classification rules:
 - User mentions "see", "view", "what's scheduled", "event list", "my events", "what's tomorrow" → query_event
 - User mentions "change", "modify", "adjust", "switch", "postpone", "move up", etc., involving existing events → update_event
 - User explicitly mentions "delete", "cancel", "don't want", "not going" → delete_event
+- User mentions "search", "find more info", "add details", "enrich", "get more information", "look up", "supplement" about an existing event → enrich_event
 - Other cases (greetings, chat, uncertain, needs clarification) → chat
 
 Please return only one JSON object in the following format:
