@@ -36,46 +36,61 @@ class EventExtractionList(BaseModel):
         None,
         description="Clarification question to ask user"
     )
+    search_keywords: Optional[List[str]] = Field(
+        None,
+        description="Keywords that could be used to search for this event online (e.g., ['Hamburg Philharmonic', 'Beethoven Symphony', 'February 2026'])"
+    )
+    confidence: Optional[float] = Field(
+        None,
+        description="Confidence level in extracted information (0.0-1.0)"
+    )
+    date_hint: Optional[str] = Field(
+        None,
+        description="Partial date information (e.g., 'February', 'next month', '2026')"
+    )
 
 
 # ============================================================================
 # Text Parsing Prompt
 # ============================================================================
 
-TEXT_PARSE_SYSTEM = """你是一个智能日程助手，擅长从自然语言文本中提取日程信息。
+TEXT_PARSE_SYSTEM = """You are a smart calendar assistant, skilled at extracting event information from natural language text.
 
-请仔细分析用户输入的文字，提取出所有可能的日程事件。对于每个事件，你需要：
-1. 提取事件标题
-2. 推断开始时间（如果文本中没有明确时间，使用当前时间作为参考）
-3. 推断结束时间（如果可能）
-4. 提取地点信息（如果有）
-5. 提取事件描述
+Please carefully analyze the user's input text and extract all possible event information. For each event, you need to:
+1. Extract event title
+2. Infer start time (if no explicit time in text, use current time as reference)
+3. Infer end time (if possible)
+4. Extract location information (if available)
+5. Extract event description
 
-当前时间：{current_time}
+Current time: {current_time}
 
-**重要：信息不完整时需要反问用户**
-如果以下关键信息缺失或模糊，请设置 needs_clarification=true 并提出澄清问题：
-- 时间不明确（如"下周"但没说具体哪天，"晚上"但没说几点）
-- 事件类型不清楚
-- 有多种可能的理解方式
+**Important: Ask user when information is incomplete**
+If the following key information is missing or ambiguous, set needs_clarification=true and ask a clarification question:
+- Time is unclear (e.g., "next week" but no specific day, "evening" but no specific hour)
+- Event type is unclear
+- Multiple possible interpretations
 
-澄清问题应该简洁友好，一次只问一个最重要的问题。
+Clarification questions should be concise and friendly, ask only one most important question at a time.
 
-请以 JSON 格式返回结果：
-- events: 事件数组，每个事件包含 title, start_time, end_time, location, description
-- needs_clarification: 是否需要澄清（布尔值）
-- clarification_question: 澄清问题（仅当 needs_clarification=true 时）
+Please return results in JSON format:
+- events: Event array, each event contains title, start_time, end_time, location, description
+- needs_clarification: Whether clarification is needed (boolean)
+- clarification_question: Clarification question (only when needs_clarification=true)
+- search_keywords: List of keywords that could be used to search for this event online (e.g., ["Hamburg Philharmonic", "Beethoven", "February 2026"])
+- confidence: Confidence level in extracted information (0.0-1.0)
+- date_hint: Partial date information (e.g., "February", "next month", "2026")
 
-示例1 - 信息完整：
-{{"events": [...], "needs_clarification": false, "clarification_question": null}}
+Example 1 - Complete information:
+{{"events": [...], "needs_clarification": false, "clarification_question": null, "search_keywords": null, "confidence": 0.9, "date_hint": null}}
 
-示例2 - 需要澄清：
-{{"events": [], "needs_clarification": true, "clarification_question": "请问「下周开会」是指下周几呢？大概几点开始？"}}
+Example 2 - Needs clarification:
+{{"events": [], "needs_clarification": true, "clarification_question": "What day next week is the meeting? What time does it start?", "search_keywords": ["meeting"], "confidence": 0.3, "date_hint": "next week"}}
 
-示例3 - 部分信息可提取，但仍需澄清：
-{{"events": [{{"title": "开会", "start_time": "2026-02-03T14:00:00", ...}}], "needs_clarification": true, "clarification_question": "我暂时假设是下周一下午2点，请问这个时间对吗？"}}"""
+Example 3 - Partial information extractable, but still needs clarification:
+{{"events": [{{"title": "Meeting", "start_time": "2026-02-03T14:00:00", ...}}], "needs_clarification": true, "clarification_question": "I'm assuming it's next Monday at 2 PM, is that correct?", "search_keywords": ["meeting", "next week"], "confidence": 0.6, "date_hint": "next week"}}"""
 
-TEXT_PARSE_USER = "用户输入：{text}\n补充说明：{additional_note}"
+TEXT_PARSE_USER = "User input: {text}\nAdditional note: {additional_note}"
 
 TEXT_PARSE_PROMPT = ChatPromptTemplate.from_messages([
     ("system", TEXT_PARSE_SYSTEM),
@@ -110,12 +125,15 @@ Please return results in JSON format:
 - events: Event array, each event contains title, start_time, end_time, location, description
 - needs_clarification: Whether clarification is needed (boolean)
 - clarification_question: Clarification question (only when needs_clarification=true)
+- search_keywords: List of keywords that could be used to search for this event online (e.g., ["Hamburg Philharmonic", "Beethoven Symphony", "February 2026"])
+- confidence: How confident you are in the extracted information (0.0-1.0)
+- date_hint: Any partial date information (e.g., "February", "next month", "2026")
 
 Example 1 - Complete information:
-{{"events": [...], "needs_clarification": false, "clarification_question": null}}
+{{"events": [...], "needs_clarification": false, "clarification_question": null, "search_keywords": null, "confidence": 0.9, "date_hint": null}}
 
 Example 2 - Needs clarification:
-{{"events": [], "needs_clarification": true, "clarification_question": "Is the event in the image happening this year or next year?"}}
+{{"events": [], "needs_clarification": true, "clarification_question": "Is the event in the image happening this year or next year?", "search_keywords": ["Elbphilharmonie", "Beethoven", "concert"], "confidence": 0.3, "date_hint": null}}
 
 Example 3 - Partial information extractable, but still needs clarification:
-{{"events": [{{"title": "Concert", "start_time": "2026-03-15T19:30:00", ...}}], "needs_clarification": true, "clarification_question": "The image doesn't show the year, I'm assuming it's 2026, is that correct?"}}"""
+{{"events": [{{"title": "Concert", "start_time": "2026-03-15T19:30:00", ...}}], "needs_clarification": true, "clarification_question": "The image doesn't show the year, I'm assuming it's 2026, is that correct?", "search_keywords": ["Concert", "March 2026"], "confidence": 0.6, "date_hint": "March 2026"}}"""
