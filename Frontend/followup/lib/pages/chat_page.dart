@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:universal_html/html.dart' as html;
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../models/event.dart';
 import '../providers/auth_provider.dart';
 import '../services/chat_service.dart';
 
@@ -1115,7 +1116,7 @@ class _ChatBubble extends StatelessWidget {
     return false;
   }
 
-  /// Build action buttons (ICS download + View Events)
+  /// Build action buttons (ICS download + View Event)
   Widget _buildIcsDownloadButton(BuildContext context, Map<String, dynamic> actionResult) {
     return Wrap(
       spacing: 8,
@@ -1128,16 +1129,59 @@ class _ChatBubble extends StatelessWidget {
           label: 'Add to Calendar',
           onTap: () => _downloadIcs(context, actionResult),
         ),
-        // View Saved button
+        // View Event Detail button
         _buildActionButton(
           context: context,
-          icon: Icons.event_note_outlined,
-          label: 'View Saved',
-          onTap: () => Navigator.pushNamed(context, '/events'),
+          icon: Icons.visibility_outlined,
+          label: 'View Detail',
+          onTap: () => _viewEventDetail(context, actionResult),
           isSecondary: true,
         ),
       ],
     );
+  }
+
+  /// Navigate to event detail page
+  void _viewEventDetail(BuildContext context, Map<String, dynamic> actionResult) {
+    EventData? eventData;
+
+    // Try to get event from actionResult
+    if (actionResult['event_id'] != null) {
+      // Single event created
+      eventData = EventData(
+        id: actionResult['event_id'] as int,
+        title: actionResult['event_title'] as String? ?? 'Event',
+        startTime: DateTime.now(), // Will be loaded from server
+      );
+    } else if (actionResult['events'] != null) {
+      // Multiple events - get first one
+      final events = actionResult['events'] as List<dynamic>;
+      if (events.isNotEmpty) {
+        final firstEvent = events.first as Map<String, dynamic>;
+        eventData = EventData(
+          id: firstEvent['id'] as int?,
+          title: firstEvent['title'] as String? ?? 'Event',
+          startTime: firstEvent['start_time'] != null
+              ? DateTime.parse(firstEvent['start_time'] as String)
+              : DateTime.now(),
+          endTime: firstEvent['end_time'] != null
+              ? DateTime.parse(firstEvent['end_time'] as String)
+              : null,
+          location: firstEvent['location'] as String?,
+        );
+      }
+    }
+
+    if (eventData != null) {
+      Navigator.pushNamed(
+        context,
+        '/preview',
+        arguments: {'event': eventData, 'isEditing': true},
+      );
+    } else {
+      // Fallback to events list
+      Navigator.pushNamed(context, '/events');
+    }
   }
 
   /// Build a single action button
