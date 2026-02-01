@@ -1086,6 +1086,11 @@ class _ChatBubble extends StatelessWidget {
                     const SizedBox(height: 12),
                     _buildIcsDownloadButton(context, message.actionResult!),
                   ],
+                  // Collapsible action_result display (for debugging/detail view)
+                  if (!isUser && message.actionResult != null) ...[
+                    const SizedBox(height: 8),
+                    _buildActionResultCollapsible(context, message.actionResult!),
+                  ],
                 ],
               ),
             ),
@@ -1139,6 +1144,127 @@ class _ChatBubble extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// Build collapsible action_result display
+  Widget _buildActionResultCollapsible(BuildContext context, Map<String, dynamic> actionResult) {
+    // Format action_result for display
+    final action = actionResult['action'] as String? ?? 'unknown';
+    final hasError = actionResult.containsKey('error');
+    final needMoreInfo = actionResult['need_more_info'] == true;
+    
+    // Determine status icon and color
+    IconData statusIcon;
+    Color statusColor;
+    if (hasError) {
+      statusIcon = Icons.error_outline;
+      statusColor = AppColors.error;
+    } else if (needMoreInfo) {
+      statusIcon = Icons.help_outline;
+      statusColor = Colors.orange;
+    } else {
+      statusIcon = Icons.check_circle_outline;
+      statusColor = Colors.green;
+    }
+
+    // Build summary text
+    String summary = _getActionSummary(action, actionResult);
+
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(top: 8),
+        leading: Icon(statusIcon, color: statusColor, size: 18),
+        title: Text(
+          summary,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        trailing: const Icon(Icons.expand_more, size: 18),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+            ),
+            child: SelectableText(
+              _formatJsonForDisplay(actionResult),
+              style: TextStyle(
+                fontSize: 11,
+                fontFamily: 'monospace',
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Get human-readable action summary
+  String _getActionSummary(String action, Map<String, dynamic> actionResult) {
+    switch (action) {
+      case 'create_event':
+        final eventId = actionResult['event_id'];
+        return eventId != null ? 'Created event #$eventId' : 'Create event';
+      case 'update_event':
+        final eventId = actionResult['event_id'];
+        return eventId != null ? 'Updated event #$eventId' : 'Update event';
+      case 'delete_event':
+        final eventIds = actionResult['event_ids'];
+        return eventIds != null ? 'Deleted ${(eventIds as List).length} event(s)' : 'Delete event';
+      case 'query_event':
+        final events = actionResult['events'] as List?;
+        return events != null ? 'Found ${events.length} event(s)' : 'Query events';
+      case 'general_conversation':
+        return 'General chat';
+      default:
+        return action.replaceAll('_', ' ').toUpperCase();
+    }
+  }
+
+  /// Format JSON for display with proper indentation
+  String _formatJsonForDisplay(Map<String, dynamic> data) {
+    // Create a cleaned copy without large base64 content
+    final cleaned = _cleanForDisplay(data);
+    const encoder = JsonEncoder.withIndent('  ');
+    return encoder.convert(cleaned);
+  }
+
+  /// Clean data for display (truncate large values)
+  Map<String, dynamic> _cleanForDisplay(Map<String, dynamic> data) {
+    final result = <String, dynamic>{};
+    for (final entry in data.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      
+      if (value is String && value.length > 100) {
+        // Truncate long strings (like base64)
+        result[key] = '${value.substring(0, 50)}... (${value.length} chars)';
+      } else if (value is Map<String, dynamic>) {
+        result[key] = _cleanForDisplay(value);
+      } else if (value is List) {
+        result[key] = value.map((e) {
+          if (e is Map<String, dynamic>) {
+            return _cleanForDisplay(e);
+          } else if (e is String && e.length > 100) {
+            return '${e.substring(0, 50)}... (${e.length} chars)';
+          }
+          return e;
+        }).toList();
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
   }
 
   /// Navigate to event detail page
