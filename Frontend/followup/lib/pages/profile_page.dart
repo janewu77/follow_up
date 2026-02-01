@@ -217,11 +217,11 @@ class _ProfilePageState extends State<ProfilePage> {
           // Account Info
           _buildInfoSection(user, l10n),
           const SizedBox(height: 24),
-          // Connection Status
-          _buildConnectionSection(l10n),
-          const SizedBox(height: 24),
           // Actions
           _buildActionsSection(l10n),
+          const SizedBox(height: 24),
+          // Connection Status
+          _buildConnectionSection(l10n),
           const SizedBox(height: 48),
           // Logout Button
           _buildLogoutButton(l10n),
