@@ -1,7 +1,7 @@
 """
-数据库初始化脚本
+Database initialization script
 
-创建表并插入预置用户数据
+Create tables and insert preset user data
 """
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -14,15 +14,15 @@ logger = get_logger(__name__)
 
 
 def init_users(db: Session):
-    """初始化预置用户"""
-    # 检查用户是否已存在
+    """Initialize preset users"""
+    # Check if users already exist
     existing_users = db.query(User).count()
     if existing_users > 0:
         logger.info(f"Users already exist ({existing_users} users), skipping initialization")
         return
 
     logger.info("Initializing preset users...")
-    # 预置用户
+    # Preset users
     users_data = [
         {"username": "alice", "password": "alice123"},
         {"username": "bob", "password": "bob123"},
@@ -95,14 +95,14 @@ def init_sample_events(db: Session):
 
 
 def main():
-    """主函数"""
+    """Main function"""
     print("[INIT] Initializing database...")
     
-    # 创建表
+    # Create tables
     init_db()
     print("[OK] Database tables created")
 
-    # 初始化数据
+    # Initialize data
     db = SessionLocal()
     try:
         init_users(db)
